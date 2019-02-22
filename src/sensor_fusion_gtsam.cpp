@@ -15,11 +15,17 @@
 #include <gtsam/navigation/PreintegrationBase.h>
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/navigation/ImuFactor.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/navigation/CombinedImuFactor.h>
 
 #include <boost/algorithm/string.hpp>
 
 
 using namespace std;
+using namespace gtsam;
+using gtsam::symbol_shorthand::X;
+using gtsam::symbol_shorthand::V;
+using gtsam::symbol_shorthand::B;
 using Sophus::SE3;
 using Sophus::SO3;
 
@@ -43,6 +49,75 @@ using Sophus::SO3;
 	 double t;
 	 gtsam::Vector3 pos;
  }GPSData;
+ struct IMUHelper {
+   IMUHelper() {
+     {
+       auto gaussian = gtsam::noiseModel::Diagonal::Sigmas(
+           (gtsam::Vector(6) << Vector3::Constant(5.0e-2), Vector3::Constant(5.0e-3))
+               .finished());
+       auto huber = noiseModel::Robust::Create(
+           noiseModel::mEstimator::Huber::Create(1.345), gaussian);
+
+       biasNoiseModel = huber;
+     }
+
+     {
+       auto gaussian = noiseModel::Isotropic::Sigma(3, 0.01);
+       auto huber = noiseModel::Robust::Create(
+           noiseModel::mEstimator::Huber::Create(1.345), gaussian);
+
+       velocityNoiseModel = huber;
+     }
+
+     // expect IMU to be rotated in image space co-ords
+     auto p = boost::make_shared<PreintegratedCombinedMeasurements::Params>(
+         Vector3(0.0, 9.8, 0.0));
+
+     p->accelerometerCovariance =
+         I_3x3 * pow(0.0565, 2.0);  // acc white noise in continuous
+     p->integrationCovariance =
+         I_3x3 * 1e-9;  // integration uncertainty continuous
+     p->gyroscopeCovariance =
+         I_3x3 * pow(4.0e-5, 2.0);  // gyro white noise in continuous
+     p->biasAccCovariance = I_3x3 * pow(0.00002, 2.0);  // acc bias in continuous
+     p->biasOmegaCovariance =
+         I_3x3 * pow(0.001, 2.0);  // gyro bias in continuous
+     p->biasAccOmegaInt = Matrix::Identity(6, 6) * 1e-5;
+
+     // body to IMU rotation
+     Rot3 iRb(0.036129, -0.998727, 0.035207,
+              0.045417, -0.033553, -0.998404,
+              0.998315, 0.037670, 0.044147);
+
+     // body to IMU translation (meters)
+     Point3 iTb(0.03, -0.025, -0.06);
+
+     // body in this example is the left camera
+     p->body_P_sensor = Pose3(iRb, iTb);
+
+     Rot3 prior_rotation = Rot3(I_3x3);
+     Pose3 prior_pose(prior_rotation, Point3(0, 0, 0));
+
+     Vector3 acc_bias(0.0, -0.0942015, 0.0);  // in camera frame
+     Vector3 gyro_bias(-0.00527483, -0.00757152, -0.00469968);
+
+     priorImuBias = imuBias::ConstantBias(acc_bias, gyro_bias);
+
+     prevState = NavState(prior_pose, Vector3(0, 0, 0));
+     propState = prevState;
+     prevBias = priorImuBias;
+
+     preintegrated = new PreintegratedCombinedMeasurements(p, priorImuBias);
+   }
+
+   imuBias::ConstantBias priorImuBias;  // assume zero initial bias
+   noiseModel::Robust::shared_ptr velocityNoiseModel;
+   noiseModel::Robust::shared_ptr biasNoiseModel;
+   NavState prevState;
+   NavState propState;
+   imuBias::ConstantBias prevBias;
+   PreintegratedCombinedMeasurements* preintegrated;
+ };
  vector<IMUData> imuData;
 void findIMUIndex(double tEnd,double tStart,int& startIndex,vector<int>& imuIndex);
 int main ( )
@@ -61,6 +136,11 @@ int main ( )
     {
     	cout<<"open gps data file failed!"<<endl;
     }
+    if(!resultofs.is_open())
+     {
+     	cout<<"open result data file failed!"<<endl;
+     }
+
     vector<GPSData> gpsData;
     while(!imuifs.eof())
     {
@@ -100,14 +180,12 @@ int main ( )
     		cntGPS++;
     	}
     }
-    cout<<"imuData size:"<<imuData.size()<<endl;
-    cout<<"gpsData size:"<<gpsData.size()<<endl;
+
 
     gtsam::Vector3 g(0.0,0.0,-9.8);
     gtsam::Vector3 w_coriolis(0.0,0.0,0.0);
     gtsam::Vector3 zero(0.0,0.0,0.0);
     gtsam::Matrix3 unit = gtsam::Matrix3::Identity();
-    cout<<"unit matrix"<<unit<<endl;
     int firstGPSPose = 1;
     
     gtsam::Rot3 R;
@@ -122,69 +200,72 @@ int main ( )
     gpsSigma<<gtsam::Vector3::Constant(0.0),gtsam::Vector3::Constant(1.0/0.07);
     gtsam::SharedNoiseModel noiseModelGPS = gtsam::noiseModel::Diagonal::Precisions(gpsSigma, 1);
 
-    // current key , value, and sigma
-    gtsam::Key currentPosKey = gtsam::Key(gpsData[0].t*1000*1000);
-    gtsam::Key currentVelKey = currentPosKey + 1;
-    gtsam::Key currentBiasKey = currentPosKey + 2;
-    
     gtsam::Pose3 currentPos(gtsam::Pose3(R,t));
     gtsam::Vector3 currentVel(0.0,0.0,0.0);
     gtsam::imuBias::ConstantBias currentBias(zero,zero);
     
-    gtsam::SharedNoiseModel initSigmaP = gtsam::noiseModel::Isotropic::Precision(6,1,true);
+    gtsam::SharedNoiseModel initSigmaP =gtsam::noiseModel::Diagonal::Sigmas(
+    		(gtsam::Vector(6) <<gtsam::Vector3::Constant(0.1),gtsam::Vector3::Constant(0.1)).finished());
+
     gtsam::SharedNoiseModel initSigmaV = gtsam::noiseModel::Isotropic::Sigma(3, 1000.0, 1);
     gtsam::SharedNoiseModel initSigmaB = gtsam::noiseModel::Isotropic::Sigmas(biasSigma, 1);
 
     //imu params
-    boost::shared_ptr<gtsam::PreintegrationParams> IMU_params(new gtsam::PreintegrationParams(g));
+    boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params> IMU_params(new gtsam::PreintegratedCombinedMeasurements::Params(g));
     IMU_params->setAccelerometerCovariance(0.01*unit);
     IMU_params->setGyroscopeCovariance(1.75e-4*1.75e-4*unit);
     IMU_params->setIntegrationCovariance(0*unit);
     IMU_params->setOmegaCoriolis(w_coriolis);
 
     gtsam::ISAM2Params isamParams;
-    isamParams.setFactorization("CHOLESKY");
-    isamParams.setRelinearizeSkip(10);
+//    isamParams.setFactorization("CHOLESKY");
+//    isamParams.setRelinearizeSkip(1);
+    isamParams.relinearizeThreshold = 0.1;
     gtsam::ISAM2 isam(isamParams);
 
     gtsam::NonlinearFactorGraph newFactors;
     gtsam::Values newValues;
+    IMUHelper imu;
 
     int i = 1,j=0;
     double currentT,previousT;
     while(i<cntGPS)
     {
-    	currentPosKey = gtsam::Key(gpsData[i].t*1000*1000);
-    	currentVelKey = currentPosKey + 1;
-    	currentBiasKey = currentPosKey + 2;
-    	cout<<"Key:"<<currentPosKey<<" "<<currentVelKey<<" "<<currentBiasKey<<endl;
+    	cout<<"i = "<<i<<endl;
     	currentT = gpsData[i].t;
     	if(i == firstGPSPose)
     	{
-    		newValues.insert(currentPosKey,currentPos);
-    		newValues.insert(currentVelKey,currentVel);
-    		newValues.insert(currentBiasKey,currentBias);
+    		//pos prior
+    		t = gpsData[i].pos;
+    		currentPos = gtsam::Pose3(R,t);
     		gtsam::NonlinearFactor::shared_ptr posFactor(new
-    				gtsam::PriorFactor<gtsam::Pose3>(currentPosKey,currentPos,initSigmaP));
-    		gtsam::NonlinearFactor::shared_ptr velFactor(new
-    				gtsam::PriorFactor<gtsam::Vector>(currentVelKey,currentVel,initSigmaV));
-    		gtsam::NonlinearFactor::shared_ptr biasFactor(new
-    				gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(currentBiasKey,currentBias,initSigmaB));
+    		    				gtsam::PriorFactor<gtsam::Pose3>(X(1),currentPos,initSigmaP));
     		newFactors.push_back(posFactor);
-    		newFactors.push_back(velFactor);
+    		newValues.insert(X(0),currentPos);
+
+    		// bias prior
+    		gtsam::NonlinearFactor::shared_ptr biasFactor(new
+    		    				gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B(1),currentBias,initSigmaB));
     		newFactors.push_back(biasFactor);
-    		resultofs<<"Key:"<<currentPosKey<< currentPos<<" "<<currentVel<<" "<<currentBias<<endl;
+    		newValues.insert(B(0),currentBias);
+
+    		//vel prior
+    		gtsam::NonlinearFactor::shared_ptr velFactor(new
+    				gtsam::PriorFactor<gtsam::Vector3>(V(1),currentVel,initSigmaV));
+    		newFactors.push_back(velFactor);
+    		newValues.insert(V(0),currentVel);
     	}
     	else
     	{
+    		gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[i].pos));
+    		newValues.insert(X(i-1),gpsPos);
+    		newValues.insert(V(i-1),currentVel);
+    		newValues.insert(B(i-1),currentBias);
+
+    		// IMU preintegrated
     		previousT = gpsData[i-1].t;
             vector<int> IMUindices;
             findIMUIndex(currentT, previousT,startIndex, IMUindices);
-    		boost::shared_ptr<gtsam::PreintegratedImuMeasurements> currentSummarizedMeasurement ( new
-    				gtsam::PreintegratedImuMeasurements(IMU_params,currentBias));
-    		
-    		cout<<"start time:"<<previousT<<". End time:"<< currentT<<". startIndex:"<<startIndex<<endl;
-    		
     		int imuLength = IMUindices.size();
     		while(j < imuLength)
     		{
@@ -192,48 +273,45 @@ int main ( )
     			gtsam::Vector3 accMeas(imuData[index].ax,imuData[index].ay,imuData[index].az);
     			gtsam::Vector3 gyroMeas(imuData[index].gx,imuData[index].gy,imuData[index].gz);
     			double dt = imuData[index].dt;
-    			currentSummarizedMeasurement->integrateMeasurement(accMeas,gyroMeas,dt);
+    			imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
     			j++;
     		}
     		gtsam::NonlinearFactor::shared_ptr imuFactor(new
-    				gtsam::ImuFactor(currentPosKey-1,currentVelKey-1,currentPosKey,currentVelKey,currentBiasKey,*currentSummarizedMeasurement));
+    		    				gtsam::CombinedImuFactor(X(i-2),V(i-2),X(i-1),V(i-1),B(i-2),B(i-1),*imu.preintegrated));
+    		newFactors.push_back(imuFactor);
 
+    		// bias factor
     		gtsam::Vector imuBiasSigmas(6);
     		imuBiasSigmas<<sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3;
-
     		gtsam::NonlinearFactor::shared_ptr betweenFactorConstantBias(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
-    				(currentBiasKey-1,currentBiasKey,gtsam::imuBias::ConstantBias(zero,zero),
+    				(B(i-2),B(i-1),gtsam::imuBias::ConstantBias(zero,zero),
     						gtsam::noiseModel::Diagonal::Sigmas(imuBiasSigmas)));
-    		newFactors.push_back(imuFactor);
     		newFactors.push_back(betweenFactorConstantBias);
-    		gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[i].pos));
 
+    		//GPS factor
     		if(i%1 == 0)
     		{
-    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(currentPosKey,gpsPos,noiseModelGPS));
+    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(i-1),gpsPos,noiseModelGPS));
     			newFactors.push_back(gpsFactor);
     		}
-    		newValues.insert(currentPosKey,gpsPos);
-    		newValues.insert(currentVelKey,currentVel);
-    		newValues.insert(currentBiasKey,currentBias);
-    		//if(i > 1)
-    		//{
-    			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
-    			isam2Result.print();
-    			
+
+    		if(i > 1)
+    		{
+     			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
     			gtsam::Values result = isam.calculateEstimate();
-    			result.print("current estimate:");
-    			currentPos = result.at<gtsam::Pose3>(currentPosKey);
-    			currentVel = result.at<gtsam::Vector3>(currentVelKey);
-    			currentBias = result.at<gtsam::imuBias::ConstantBias>(currentBiasKey);
-    			resultofs<<currentPosKey<< currentPos<<" "<<currentVel<<" "<<currentBias<<endl;
+    			currentPos = result.at<gtsam::Pose3>(X(i-1));
+    			currentVel = result.at<gtsam::Vector3>(V(i-1));
+    			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(i-1));
+    			resultofs<<currentT<<" "<< currentPos.x()<<" "<<currentPos.y()<<" "<<currentPos.z()<<" "<<currentVel.transpose()<<endl;
     			newFactors.resize(0);
     			newValues.clear();
-    		//}
-
+    		}
     	}
     	i++;
     }
+    imuifs.close();
+    gpsifs.close();
+    resultofs.close();
 	return 0;
 }
 void findIMUIndex(double tEnd,double tStart,int& startIndex,vector<int>& imuIndex)

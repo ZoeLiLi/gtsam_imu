@@ -36,7 +36,7 @@ INCLUDE_DIRECTORIES(${GTSAM_INCLUDE_DIR})
 #set (SOURCE_FILE ${SOURCE_FOLDER}/data_load.cpp
 #${SOURCE_FOLDER}/sensor_fusion_gtsam.cpp)
 							  
-add_executable( sensor_fusion_gtsam sensor_fusion_gtsam.cpp )
+add_executable( sensor_fusion_gtsam src/sensor_fusion_gtsam.cpp )
 target_link_libraries(sensor_fusion_gtsam ${Boost_LIBRARIES} -lgtsam -ltbb)
 install(TARGETS sensor_fusion_gtsam RUNTIME DESTINATION bin)
 
