@@ -71,7 +71,7 @@ using Sophus::SO3;
 
      // expect IMU to be rotated in image space co-ords
      auto p = boost::make_shared<PreintegratedCombinedMeasurements::Params>(
-         Vector3(0.0, 9.8, 0.0));
+         Vector3(0.0, 0.0, -9.8));
 
      p->accelerometerCovariance =
          I_3x3 * pow(0.0565, 2.0);  // acc white noise in continuous
@@ -85,12 +85,12 @@ using Sophus::SO3;
      p->biasAccOmegaInt = Matrix::Identity(6, 6) * 1e-5;
 
      // body to IMU rotation
-     Rot3 iRb(0.036129, -0.998727, 0.035207,
-              0.045417, -0.033553, -0.998404,
-              0.998315, 0.037670, 0.044147);
+     Rot3 iRb(1, 0, 0,
+              0, 1, 0,
+              0, 0, 1);
 
      // body to IMU translation (meters)
-     Point3 iTb(0.03, -0.025, -0.06);
+     Point3 iTb(0, 0, 0);
 
      // body in this example is the left camera
      p->body_P_sensor = Pose3(iRb, iTb);
@@ -98,8 +98,8 @@ using Sophus::SO3;
      Rot3 prior_rotation = Rot3(I_3x3);
      Pose3 prior_pose(prior_rotation, Point3(0, 0, 0));
 
-     Vector3 acc_bias(0.0, -0.0942015, 0.0);  // in camera frame
-     Vector3 gyro_bias(-0.00527483, -0.00757152, -0.00469968);
+     Vector3 acc_bias(0, 0, 0);  // in camera frame
+     Vector3 gyro_bias(0, 0, 0);
 
      priorImuBias = imuBias::ConstantBias(acc_bias, gyro_bias);
 
@@ -231,7 +231,6 @@ int main ( )
     double currentT,previousT;
     while(i<cntGPS)
     {
-    	cout<<"i = "<<i<<endl;
     	currentT = gpsData[i].t;
     	if(i == firstGPSPose)
     	{
@@ -258,6 +257,11 @@ int main ( )
     	else
     	{
     		gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[i].pos));
+    		if(i%2 == 0)
+    		  	{
+    		    	gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(i-1),gpsPos,noiseModelGPS));
+    		    	newFactors.push_back(gpsFactor);
+    		    }
     		newValues.insert(X(i-1),gpsPos);
     		newValues.insert(V(i-1),currentVel);
     		newValues.insert(B(i-1),currentBias);
@@ -265,21 +269,26 @@ int main ( )
     		// IMU preintegrated
     		previousT = gpsData[i-1].t;
             vector<int> IMUindices;
+            j=0;
             findIMUIndex(currentT, previousT,startIndex, IMUindices);
     		int imuLength = IMUindices.size();
+
     		while(j < imuLength)
     		{
+
     			int  index = IMUindices[j];
     			gtsam::Vector3 accMeas(imuData[index].ax,imuData[index].ay,imuData[index].az);
     			gtsam::Vector3 gyroMeas(imuData[index].gx,imuData[index].gy,imuData[index].gz);
     			double dt = imuData[index].dt;
     			imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
+    			//imu.preintegrated->print();
     			j++;
     		}
     		gtsam::NonlinearFactor::shared_ptr imuFactor(new
     		    				gtsam::CombinedImuFactor(X(i-2),V(i-2),X(i-1),V(i-1),B(i-2),B(i-1),*imu.preintegrated));
     		newFactors.push_back(imuFactor);
 
+    		//cout<< "IMU:"<<IMUindices[0]<<" "<<imuData[IMUindices[0]].t<<" "<<IMUindices.end()<<" "<<imuData[IMUindices[imuLength-1]].t<<endl;
     		// bias factor
     		gtsam::Vector imuBiasSigmas(6);
     		imuBiasSigmas<<sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3;
@@ -289,11 +298,7 @@ int main ( )
     		newFactors.push_back(betweenFactorConstantBias);
 
     		//GPS factor
-    		if(i%1 == 0)
-    		{
-    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(i-1),gpsPos,noiseModelGPS));
-    			newFactors.push_back(gpsFactor);
-    		}
+
 
     		if(i > 1)
     		{
@@ -303,6 +308,7 @@ int main ( )
     			currentVel = result.at<gtsam::Vector3>(V(i-1));
     			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(i-1));
     			resultofs<<currentT<<" "<< currentPos.x()<<" "<<currentPos.y()<<" "<<currentPos.z()<<" "<<currentVel.transpose()<<endl;
+    			imu.preintegrated->resetIntegrationAndSetBias(currentBias);
     			newFactors.resize(0);
     			newValues.clear();
     		}
@@ -319,7 +325,7 @@ void findIMUIndex(double tEnd,double tStart,int& startIndex,vector<int>& imuInde
 
 	while(startIndex < imuData.size())
 	{
-		if(imuData[startIndex].t >= tStart && imuData[startIndex].t <= tEnd)
+		if(imuData[startIndex].t > tStart && imuData[startIndex].t <= tEnd)
 		{
 			imuIndex.push_back(startIndex);
 		}
