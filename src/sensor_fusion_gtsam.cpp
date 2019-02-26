@@ -285,7 +285,6 @@ int main ( )
     			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(xIndex),gpsPos,noiseModelGPS));
     			newFactors.push_back(gpsFactor);
     			gpsIndex ++;
-    			cout<<"GPS:"<<gpsIndex<<endl;
     			gpsUpdate = true;
     		}
     		else{
@@ -301,7 +300,7 @@ int main ( )
     			count +=1;
     		}
     			//add Vertex;
-    		if(gpsUpdate)
+    		if(count >= 10) //25Hz
     		{
     			// add imu factor
     			gtsam::NonlinearFactor::shared_ptr imuFactor(new
@@ -317,9 +316,10 @@ int main ( )
     			newFactors.push_back(betweenFactorConstantBias);
 
 
-    			newValues.insert(X(xIndex),gtsam::Pose3(currentPos.rotation(),gpsData[gpsIndex-1].pos));
+    			newValues.insert(X(xIndex),currentPos);
     			newValues.insert(V(vIndex),currentVel);
     			newValues.insert(B(bIndex),currentBias);
+
 
     			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
     			gtsam::Values result = isam.calculateEstimate();
