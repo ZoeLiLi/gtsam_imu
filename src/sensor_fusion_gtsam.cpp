@@ -181,7 +181,6 @@ int main ( )
     	}
     }
 
-
     gtsam::Vector3 g(0.0,0.0,-9.8);
     gtsam::Vector3 w_coriolis(0.0,0.0,0.0);
     gtsam::Vector3 zero(0.0,0.0,0.0);
@@ -227,93 +226,119 @@ int main ( )
     gtsam::Values newValues;
     IMUHelper imu;
 
-    int i = 1,j=0;
+    int imuIndex = 0,gpsIndex=1;
     double currentT,previousT;
-    while(i<cntGPS)
+
+    int xIndex = 0,vIndex = 0,bIndex = 0;
+    while(gpsData[gpsIndex].t < imuData[imuIndex].t)
     {
-    	currentT = gpsData[i].t;
-    	if(i == firstGPSPose)
+    	gpsIndex ++;
+    }
+    bool initialed = false;
+    bool gpsUpdate = false;
+    int count = 0;
+
+    while(imuIndex<cntIMU)
+    {
+    	currentT = imuData[imuIndex].t;
+    	if(!initialed)
     	{
-    		//pos prior
-    		t = gpsData[i].pos;
-    		currentPos = gtsam::Pose3(R,t);
-    		gtsam::NonlinearFactor::shared_ptr posFactor(new
-    		    				gtsam::PriorFactor<gtsam::Pose3>(X(1),currentPos,initSigmaP));
-    		newFactors.push_back(posFactor);
-    		newValues.insert(X(0),currentPos);
+    		if(fabs(gpsData[gpsIndex].t-currentT) < 0.5*imuData[imuIndex].dt)
+    		{
+    			// add the first vertex and factor
+    			t = gpsData[gpsIndex].pos;
+    		    currentPos = gtsam::Pose3(R,t);
 
-    		// bias prior
-    		gtsam::NonlinearFactor::shared_ptr biasFactor(new
-    		    				gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B(1),currentBias,initSigmaB));
-    		newFactors.push_back(biasFactor);
-    		newValues.insert(B(0),currentBias);
+    			// pos prior
+    		    gtsam::NonlinearFactor::shared_ptr posFactor(new
+    		    		gtsam::PriorFactor<gtsam::Pose3>(X(xIndex+1),currentPos,initSigmaP));
+    		    newFactors.push_back(posFactor);
+    		    newValues.insert(X(xIndex),currentPos);
 
-    		//vel prior
-    		gtsam::NonlinearFactor::shared_ptr velFactor(new
-    				gtsam::PriorFactor<gtsam::Vector3>(V(1),currentVel,initSigmaV));
-    		newFactors.push_back(velFactor);
-    		newValues.insert(V(0),currentVel);
+    		    // bias prior
+    		    gtsam::NonlinearFactor::shared_ptr biasFactor(new
+    		    		gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B(bIndex+1),currentBias,initSigmaB));
+    		    newFactors.push_back(biasFactor);
+    		    newValues.insert(B(bIndex),currentBias);
+
+    		        		//vel prior
+    		    gtsam::NonlinearFactor::shared_ptr velFactor(new
+    		        	gtsam::PriorFactor<gtsam::Vector3>(V(vIndex+1),currentVel,initSigmaV));
+    		    newFactors.push_back(velFactor);
+    		    newValues.insert(V(vIndex),currentVel);
+
+    			previousT = currentT;
+    			initialed = true;
+    			gpsIndex ++;
+    			xIndex ++;
+    			bIndex ++;
+    			vIndex ++;
+    		}
+    		imuIndex ++;
     	}
     	else
     	{
-    		gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[i].pos));
-    		if(i%2 == 0)
-    		  	{
-    		    	gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(i-1),gpsPos,noiseModelGPS));
-    		    	newFactors.push_back(gpsFactor);
-    		    }
-    		newValues.insert(X(i-1),gpsPos);
-    		newValues.insert(V(i-1),currentVel);
-    		newValues.insert(B(i-1),currentBias);
-
-    		// IMU preintegrated
-    		previousT = gpsData[i-1].t;
-            vector<int> IMUindices;
-            j=0;
-            findIMUIndex(currentT, previousT,startIndex, IMUindices);
-    		int imuLength = IMUindices.size();
-
-    		while(j < imuLength)
+    		if(fabs(gpsData[gpsIndex].t-currentT) < 0.5*imuData[imuIndex].dt)
     		{
-
-    			int  index = IMUindices[j];
-    			gtsam::Vector3 accMeas(imuData[index].ax,imuData[index].ay,imuData[index].az);
-    			gtsam::Vector3 gyroMeas(imuData[index].gx,imuData[index].gy,imuData[index].gz);
-    			double dt = imuData[index].dt;
-    			imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
-    			//imu.preintegrated->print();
-    			j++;
+    			gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[gpsIndex].pos));
+    			//add gps factor
+    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(xIndex),gpsPos,noiseModelGPS));
+    			newFactors.push_back(gpsFactor);
+    			gpsIndex ++;
+    			gpsUpdate = true;
     		}
-    		gtsam::NonlinearFactor::shared_ptr imuFactor(new
-    		    				gtsam::CombinedImuFactor(X(i-2),V(i-2),X(i-1),V(i-1),B(i-2),B(i-1),*imu.preintegrated));
-    		newFactors.push_back(imuFactor);
+    		else{
+    			gpsUpdate = false;
+    		}
 
-    		//cout<< "IMU:"<<IMUindices[0]<<" "<<imuData[IMUindices[0]].t<<" "<<IMUindices.end()<<" "<<imuData[IMUindices[imuLength-1]].t<<endl;
-    		// bias factor
-    		gtsam::Vector imuBiasSigmas(6);
-    		imuBiasSigmas<<sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.1670e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3,sqrt(imuLength)*0.0029e-3;
-    		gtsam::NonlinearFactor::shared_ptr betweenFactorConstantBias(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
-    				(B(i-2),B(i-1),gtsam::imuBias::ConstantBias(zero,zero),
-    						gtsam::noiseModel::Diagonal::Sigmas(imuBiasSigmas)));
-    		newFactors.push_back(betweenFactorConstantBias);
-
-    		//GPS factor
-
-
-    		if(i > 1)
+    		if(currentT - previousT > 0)
     		{
-     			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
+    			gtsam::Vector3 accMeas(imuData[imuIndex].ax,imuData[imuIndex].ay,imuData[imuIndex].az);
+    			gtsam::Vector3 gyroMeas(imuData[imuIndex].gx,imuData[imuIndex].gy,imuData[imuIndex].gz);
+    			double dt = imuData[imuIndex].dt;
+    			imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
+    			count +=1;
+    		}
+    			//add Vertex;
+    		if(count >= 10) //25Hz
+    		{
+    			// add imu factor
+    			gtsam::NonlinearFactor::shared_ptr imuFactor(new
+    					gtsam::CombinedImuFactor(X(xIndex-1),V(vIndex-1),X(xIndex),V(vIndex),B(bIndex-1),B(bIndex),*imu.preintegrated));
+    			newFactors.push_back(imuFactor);
+
+    			//add bias factor
+    			gtsam::Vector imuBiasSigmas(6);
+    			imuBiasSigmas<<sqrt(count)*0.1670e-3,sqrt(count)*0.1670e-3,sqrt(count)*0.1670e-3,sqrt(count)*0.0029e-3,sqrt(count)*0.0029e-3,sqrt(count)*0.0029e-3;
+    			gtsam::NonlinearFactor::shared_ptr betweenFactorConstantBias(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
+    			    	(B(bIndex-1),B(bIndex),gtsam::imuBias::ConstantBias(zero,zero),
+    			    	gtsam::noiseModel::Diagonal::Sigmas(imuBiasSigmas)));
+    			newFactors.push_back(betweenFactorConstantBias);
+
+
+    			newValues.insert(X(xIndex),currentPos);
+    			newValues.insert(V(vIndex),currentVel);
+    			newValues.insert(B(bIndex),currentBias);
+
+
+    			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
     			gtsam::Values result = isam.calculateEstimate();
-    			currentPos = result.at<gtsam::Pose3>(X(i-1));
-    			currentVel = result.at<gtsam::Vector3>(V(i-1));
-    			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(i-1));
+    			currentPos = result.at<gtsam::Pose3>(X(xIndex));
+    			currentVel = result.at<gtsam::Vector3>(V(vIndex));
+    			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(bIndex));
     			resultofs<<currentT<<" "<< currentPos.x()<<" "<<currentPos.y()<<" "<<currentPos.z()<<" "<<currentVel.transpose()<<endl;
-    			imu.preintegrated->resetIntegrationAndSetBias(currentBias);
     			newFactors.resize(0);
     			newValues.clear();
+
+    			imu.preintegrated->resetIntegrationAndSetBias(currentBias);
+    			xIndex ++;
+    			vIndex ++;
+    			bIndex ++;
+    			count = 0;
     		}
+    		previousT = currentT;
+    		imuIndex++;
     	}
-    	i++;
     }
     imuifs.close();
     gpsifs.close();
@@ -322,7 +347,6 @@ int main ( )
 }
 void findIMUIndex(double tEnd,double tStart,int& startIndex,vector<int>& imuIndex)
 {
-
 	while(startIndex < imuData.size())
 	{
 		if(imuData[startIndex].t > tStart && imuData[startIndex].t <= tEnd)
