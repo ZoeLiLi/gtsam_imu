@@ -49,6 +49,15 @@ using Sophus::SO3;
 	 double t;
 	 gtsam::Vector3 pos;
  }GPSData;
+ typedef struct
+ {
+	 double t;
+	 int vertexIndex;
+	 gtsam::Pose3 pos;
+	 gtsam::Vector3 vel;
+	 gtsam::imuBias::ConstantBias bias;
+	 gtsam::NonlinearFactorGraph factorVec;
+ }Graph_Info;
  struct IMUHelper {
    IMUHelper() {
      {
@@ -220,16 +229,21 @@ int main ( )
 //    isamParams.setFactorization("CHOLESKY");
 //    isamParams.setRelinearizeSkip(1);
     isamParams.relinearizeThreshold = 0.1;
-    gtsam::ISAM2 isam(isamParams);
+
 
     gtsam::NonlinearFactorGraph newFactors;
+
     gtsam::Values newValues;
+    gtsam::NonlinearFactorGraph newFactors0;
+
+    gtsam::Values newValues0;
+
     IMUHelper imu;
 
-    int imuIndex = 0,gpsIndex=1;
+    int imuIndex = 2,gpsIndex=1;
     double currentT,previousT;
 
-    int xIndex = 0,vIndex = 0,bIndex = 0;
+    int vertexIndex = 0;
     while(gpsData[gpsIndex].t < imuData[imuIndex].t)
     {
     	gpsIndex ++;
@@ -237,12 +251,20 @@ int main ( )
     bool initialed = false;
     bool gpsUpdate = false;
     int count = 0;
-
+    int count0 = 0;
+    vector<Graph_Info> graphFactorVec;
+    gtsam::NonlinearFactorGraph factorVec;
+    int windowLength = 70; //10s
     while(imuIndex<cntIMU)
     {
     	currentT = imuData[imuIndex].t;
+    	Graph_Info graphFactor;
+    	graphFactor.t = currentT;
+    	graphFactor.vertexIndex = vertexIndex;
+
     	if(!initialed)
     	{
+    		graphFactor.vertexIndex = vertexIndex;
     		if(fabs(gpsData[gpsIndex].t-currentT) < 0.5*imuData[imuIndex].dt)
     		{
     			// add the first vertex and factor
@@ -251,89 +273,160 @@ int main ( )
 
     			// pos prior
     		    gtsam::NonlinearFactor::shared_ptr posFactor(new
-    		    		gtsam::PriorFactor<gtsam::Pose3>(X(xIndex+1),currentPos,initSigmaP));
-    		    newFactors.push_back(posFactor);
-    		    newValues.insert(X(xIndex),currentPos);
+    		    		gtsam::PriorFactor<gtsam::Pose3>(X(vertexIndex+1),currentPos,initSigmaP));
 
     		    // bias prior
     		    gtsam::NonlinearFactor::shared_ptr biasFactor(new
-    		    		gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B(bIndex+1),currentBias,initSigmaB));
-    		    newFactors.push_back(biasFactor);
-    		    newValues.insert(B(bIndex),currentBias);
-
+    		    		gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B(vertexIndex+1),currentBias,initSigmaB));
     		        		//vel prior
     		    gtsam::NonlinearFactor::shared_ptr velFactor(new
-    		        	gtsam::PriorFactor<gtsam::Vector3>(V(vIndex+1),currentVel,initSigmaV));
-    		    newFactors.push_back(velFactor);
-    		    newValues.insert(V(vIndex),currentVel);
+    		        	gtsam::PriorFactor<gtsam::Vector3>(V(vertexIndex+1),currentVel,initSigmaV));
+
+    		    graphFactor.pos = currentPos;
+    		    graphFactor.vel = currentVel;
+    		    graphFactor.bias = currentBias;
+    		    graphFactorVec.push_back(graphFactor);
+
+
 
     			previousT = currentT;
     			initialed = true;
     			gpsIndex ++;
-    			xIndex ++;
-    			bIndex ++;
-    			vIndex ++;
+    			vertexIndex ++;
+
+    			factorVec.push_back(posFactor);
+    			factorVec.push_back(velFactor);
+    			factorVec.push_back(biasFactor);
     		}
     		imuIndex ++;
     	}
     	else
     	{
+    		if(currentT - previousT > 0)
+    			{
+    		    	gtsam::Vector3 accMeas(imuData[imuIndex].ax,imuData[imuIndex].ay,imuData[imuIndex].az);
+    		    	gtsam::Vector3 gyroMeas(imuData[imuIndex].gx,imuData[imuIndex].gy,imuData[imuIndex].gz);
+    		    	double dt = imuData[imuIndex].dt;
+    		    	imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
+    		    	count +=1;
+    			}
     		if(fabs(gpsData[gpsIndex].t-currentT) < 0.5*imuData[imuIndex].dt)
     		{
     			gtsam::Pose3 gpsPos(gtsam::Pose3(currentPos.rotation(),gpsData[gpsIndex].pos));
     			//add gps factor
-    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(xIndex),gpsPos,noiseModelGPS));
-    			newFactors.push_back(gpsFactor);
+    			gtsam::NonlinearFactor::shared_ptr gpsFactor(new gtsam::PriorFactor<gtsam::Pose3>(X(vertexIndex),gpsPos,noiseModelGPS));
+
+    			factorVec.push_back(gpsFactor);
+    			cout<< "GPS Index: "<<gpsIndex<<endl;
     			gpsIndex ++;
     			gpsUpdate = true;
     		}
     		else{
     			gpsUpdate = false;
     		}
-
-    		if(currentT - previousT > 0)
-    		{
-    			gtsam::Vector3 accMeas(imuData[imuIndex].ax,imuData[imuIndex].ay,imuData[imuIndex].az);
-    			gtsam::Vector3 gyroMeas(imuData[imuIndex].gx,imuData[imuIndex].gy,imuData[imuIndex].gz);
-    			double dt = imuData[imuIndex].dt;
-    			imu.preintegrated->integrateMeasurement(accMeas,gyroMeas,dt);
-    			count +=1;
-    		}
     			//add Vertex;
     		if(count >= 10) //25Hz
     		{
     			// add imu factor
     			gtsam::NonlinearFactor::shared_ptr imuFactor(new
-    					gtsam::CombinedImuFactor(X(xIndex-1),V(vIndex-1),X(xIndex),V(vIndex),B(bIndex-1),B(bIndex),*imu.preintegrated));
-    			newFactors.push_back(imuFactor);
+    					gtsam::CombinedImuFactor(X(vertexIndex-1),V(vertexIndex-1),X(vertexIndex),V(vertexIndex),B(vertexIndex-1),B(vertexIndex),*imu.preintegrated));
 
     			//add bias factor
     			gtsam::Vector imuBiasSigmas(6);
     			imuBiasSigmas<<sqrt(count)*0.1670e-3,sqrt(count)*0.1670e-3,sqrt(count)*0.1670e-3,sqrt(count)*0.0029e-3,sqrt(count)*0.0029e-3,sqrt(count)*0.0029e-3;
+
     			gtsam::NonlinearFactor::shared_ptr betweenFactorConstantBias(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
-    			    	(B(bIndex-1),B(bIndex),gtsam::imuBias::ConstantBias(zero,zero),
+    			    	(B(vertexIndex-1),B(vertexIndex),gtsam::imuBias::ConstantBias(zero,zero),
     			    	gtsam::noiseModel::Diagonal::Sigmas(imuBiasSigmas)));
-    			newFactors.push_back(betweenFactorConstantBias);
 
+    			graphFactorVec[graphFactorVec.size()-1].factorVec.push_back(imuFactor);
+    			graphFactorVec[graphFactorVec.size()-1].factorVec.push_back(betweenFactorConstantBias);
 
-    			newValues.insert(X(xIndex),currentPos);
-    			newValues.insert(V(vIndex),currentVel);
-    			newValues.insert(B(bIndex),currentBias);
+    			graphFactor.pos = currentPos;
+    			graphFactor.vel = currentVel;
+    			graphFactor.bias = currentBias;
+    			graphFactor.factorVec = factorVec;
+    			graphFactorVec.push_back(graphFactor);
 
+    			int length = graphFactorVec.size();
+    			vector<Graph_Info>::iterator it;
+    			FastVector<gtsam::NonlinearFactor::shared_ptr>::iterator fit;
+    			if(length <= windowLength)
+    			{
+    				for(int i=0;i<=vertexIndex;i++)
+					{
+						newValues.insert(X(graphFactorVec[i].vertexIndex),graphFactorVec[i].pos);
+						newValues.insert(V(graphFactorVec[i].vertexIndex),graphFactorVec[i].vel);
+						newValues.insert(B(graphFactorVec[i].vertexIndex),graphFactorVec[i].bias);
+						if(graphFactorVec[i].factorVec.size()!=0)
+						{
+							for(fit = graphFactorVec[i].factorVec.begin();fit != graphFactorVec[i].factorVec.end();fit++)
+							{
+								newFactors.push_back(*fit);
+							}
+						}
+					}
+    			}
+    			else
+    			{
 
+    				it = graphFactorVec.end();
+    				it -= windowLength;
+    				newValues.insert(X((*it).vertexIndex),(*it).pos);
+					newValues.insert(V((*it).vertexIndex),(*it).vel);
+					newValues.insert(B((*it).vertexIndex),(*it).bias);
+					cout<< (*it).vertexIndex<<endl;
+
+					newFactors.add(gtsam::PriorFactor<gtsam::Pose3>(X((*it).vertexIndex+1),(*it).pos,initSigmaP));
+					newFactors.add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B((*it).vertexIndex+1),currentBias,initSigmaB));
+					newFactors.add(gtsam::PriorFactor<gtsam::Vector3>(V((*it).vertexIndex+1),currentVel,initSigmaV));
+
+					if((*it).factorVec.size()!=0)
+					{
+						for(fit = (*it).factorVec.begin();fit != (*it).factorVec.end();fit++)
+						{
+							if(typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::Pose3>) &&
+								typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>) &&
+								typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::Vector3>))
+							{
+								newFactors.push_back(*fit);
+							}
+						}
+					}
+					for(++it; it !=graphFactorVec.end() ;it++)
+					{
+						newValues.insert(X((*it).vertexIndex),(*it).pos);
+						newValues.insert(V((*it).vertexIndex),(*it).vel);
+						newValues.insert(B((*it).vertexIndex),(*it).bias);
+						if((*it).factorVec.size()!=0)
+						{
+							for(fit = (*it).factorVec.begin();fit != (*it).factorVec.end();fit++)
+							{
+								newFactors.push_back(*fit);
+							}
+						}
+					 }
+    			}
+
+    			gtsam::ISAM2 isam(isamParams);
     			gtsam::ISAM2Result isam2Result = isam.update(newFactors, newValues);
     			gtsam::Values result = isam.calculateEstimate();
-    			currentPos = result.at<gtsam::Pose3>(X(xIndex));
-    			currentVel = result.at<gtsam::Vector3>(V(vIndex));
-    			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(bIndex));
+
+    			currentPos = result.at<gtsam::Pose3>(X(vertexIndex));
+    			currentVel = result.at<gtsam::Vector3>(V(vertexIndex));
+    			currentBias = result.at<gtsam::imuBias::ConstantBias>(B(vertexIndex));
+
+    			graphFactorVec[graphFactorVec.size()-1].pos = currentPos;
+    			graphFactorVec[graphFactorVec.size()-1].vel = currentVel;
+    			graphFactorVec[graphFactorVec.size()-1].bias = currentBias;
+
     			resultofs<<currentT<<" "<< currentPos.x()<<" "<<currentPos.y()<<" "<<currentPos.z()<<" "<<currentVel.transpose()<<endl;
+
     			newFactors.resize(0);
     			newValues.clear();
-
     			imu.preintegrated->resetIntegrationAndSetBias(currentBias);
-    			xIndex ++;
-    			vIndex ++;
-    			bIndex ++;
+    			vertexIndex ++;
+    			factorVec.resize(0);
     			count = 0;
     		}
     		previousT = currentT;
