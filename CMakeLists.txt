@@ -1,5 +1,5 @@
 cmake_minimum_required( VERSION 2.8 )
-project( sensor_fusion_gtsam )
+project( multiple_sensor_fusion)
 
 set( CMAKE_BUILD_TYPE "Debug" )
 set( CMAKE_CXX_FLAGS "-std=c++11 -O3" )
@@ -23,21 +23,41 @@ find_package( Cholmod REQUIRED )
 include_directories( ${CHOLMOD_INCLUDE_DIR} )
 
 # boost
-find_package(Boost COMPONENTS system filesystem REQUIRED)
+find_package(Boost COMPONENTS system filesystem thread REQUIRED)
 include_directories(${Boost_INCLUDE_DIR})
 
 #gtsam
 find_package(GTSAM REQUIRED)
 INCLUDE_DIRECTORIES(${GTSAM_INCLUDE_DIR})
 
+#GeographicLib
+find_package(GeographicLib REQUIRED)
+include_directories(${GeographicLib_INCLUDE_DIR})
+
 #target_link_libraries(sensor_fusion_gtsam ${boost_LIBRARIES})
 
-#set (SOURCE_FOLDER ${PROJECT_SOURCE_DIR}/src)
-#set (SOURCE_FILE ${SOURCE_FOLDER}/data_load.cpp
-#${SOURCE_FOLDER}/sensor_fusion_gtsam.cpp)
-							  
-add_executable( sensor_fusion_gtsam src/sensor_fusion_gtsam.cpp )
-target_link_libraries(sensor_fusion_gtsam ${Boost_LIBRARIES} -lgtsam -ltbb)
-install(TARGETS sensor_fusion_gtsam RUNTIME DESTINATION bin)
+set (SOURCE_FOLDER ${PROJECT_SOURCE_DIR}/src)
+set (HEADER_FILES ${SOURCE_FOLDER}/alignment.h
+		  ${SOURCE_FOLDER}/constant.h
+		  ${SOURCE_FOLDER}/gnss_class.h
+		  ${SOURCE_FOLDER}/imu_class.h
+                  ${SOURCE_FOLDER}/mm_feedback_class.h
+		  ${SOURCE_FOLDER}/odometry_class.h
+		  ${SOURCE_FOLDER}/sensor_factors.h
+		  ${SOURCE_FOLDER}/sensor_fusion.h)
+
+set (SOURCE_FILES ${SOURCE_FOLDER}/alignment.cpp
+		  ${SOURCE_FOLDER}/gnss_class.cpp
+		  ${SOURCE_FOLDER}/imu_class.cpp
+		  ${SOURCE_FOLDER}/main.cpp
+		  ${SOURCE_FOLDER}/mm_feedback_class.cpp
+		  ${SOURCE_FOLDER}/odometry_class.cpp
+		  ${SOURCE_FOLDER}/sensor_factors.cpp
+		  ${SOURCE_FOLDER}/sensor_fusion.cpp)
+include_directories(${SOURCE_FOLDER})
+
+add_executable( multiple_sensor_fusion ${SOURCE_FILES} ${HEAD_FILES})							  
+target_link_libraries(multiple_sensor_fusion ${Boost_LIBRARIES} -lgtsam -ltbb)
+target_link_libraries(multiple_sensor_fusion ${GeographicLib_LIBRARIES})
 
 
