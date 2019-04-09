@@ -83,4 +83,18 @@ typedef struct
 		gtsam::SharedNoiseModel sigma_vel;
 		gtsam::SharedNoiseModel sigma_bias;
  }InitSigmaState;
+ typedef struct{
+	 unsigned long long time_stamp;
+	 double lat;
+	 double lon;
+	 double height;
+	 double ve;
+	 double vn;
+	 double vu;
+	 double roll;
+	 double pitch;
+	 double yaw;
+	 gtsam::Vector3 gyro_bias;
+	 gtsam::Vector3 acc_bias;
+ }PositionInfo;
  #endif

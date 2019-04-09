@@ -30,10 +30,12 @@ public:
 	void FastReplayLog();
 	void SetIMUData(ImuData imu_data);
 	void SetGnssData(GnssData gnss_data);
+	PositionInfo GetLatestPosition();
 private:
 	void TimeControl();
 	void Process();
 	void GetLatestSensorData();
+	void ConvertToPositionInfo(unsigned long long time);
 
 public:
 	ImuData								imu_data_;
@@ -56,6 +58,7 @@ private:
 	gtsam::Values						results_;
 
 	gtsam::ISAM2Params 					isam_params_;
+	GeographicLib::LocalCartesian		result_local_cartesian_;
 
 	std::string							triggle_mode_;
 	int									period_;
@@ -66,10 +69,10 @@ private:
 	boost::mutex						mutex_;
 	boost::condition					condition_;
 
+	PositionInfo						current_position_info_;
 	gtsam::Pose3						current_pose_;
 	gtsam::Vector3						current_velocity_;
 	gtsam::imuBias::ConstantBias		current_imu_bias_;
-	std::ofstream						resultofs_;
 
 	gtsam::Vector3						init_sigma_rotation_;
 	gtsam::Vector3						init_sigma_position_;

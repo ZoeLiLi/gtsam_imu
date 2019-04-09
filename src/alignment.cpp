@@ -48,6 +48,7 @@ bool SystemAlignment::Alignment(ImuData imu_data, GnssData gnss_data,VehicleData
 				sensor_factors_->current_factor_graph_.factors.push_back(posFactor);
 				sensor_factors_->current_factor_graph_.factors.push_back(biasFactor);
 				sensor_factors_->current_factor_graph_.factors.push_back(velFactor);
+
 				sensor_factors_->SetLatestVertexInfo();
 				sensor_factors_->UpdateCurrentVertexInfo(
 						sensor_factors_->current_factor_graph_.pose,

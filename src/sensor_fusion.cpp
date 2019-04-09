@@ -20,6 +20,7 @@ SensorFusion::SensorFusion()
 , init_sigma_position_(gtsam::Vector3::Constant(0.1))
 , init_sigma_gyro_(gtsam::Vector3::Constant(5.0e-5))
 , init_sigma_acc_(gtsam::Vector3::Constant(0.1))
+, result_local_cartesian_(0.0,0.0,0.0,GeographicLib::Geocentric::WGS84())
 {
 	sigma_pose_ << init_sigma_rotation_,init_sigma_position_;
 	sigma_bias_ << init_sigma_acc_,init_sigma_gyro_;
@@ -36,7 +37,6 @@ SensorFusion::SensorFusion()
 	system_alignment_ = boost::shared_ptr<SystemAlignment>(new SystemAlignment(sensor_factors_,init_sigma_state_));
 	isam_params_.relinearizeThreshold=0.1;
 
-	resultofs_.open("../../data/results.txt");
 //	process_thread_ = new boost::thread(boost::BOOST_BIND(&SensorFusion::Run,this));
 //	if(triggle_mode_ == "Period")
 //	{
@@ -57,6 +57,7 @@ SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int perio
 , init_sigma_position_(gtsam::Vector3::Constant(0.1))
 , init_sigma_gyro_(gtsam::Vector3::Constant(5.0e-5))
 , init_sigma_acc_(gtsam::Vector3::Constant(0.1))
+, result_local_cartesian_(0.0,0.0,0.0,GeographicLib::Geocentric::WGS84())
 {
 	sigma_pose_ << init_sigma_rotation_,init_sigma_position_;
 	sigma_bias_ << init_sigma_acc_,init_sigma_gyro_;
@@ -71,7 +72,6 @@ SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int perio
 	odometry_para_ = boost::shared_ptr<OdometryPara>(new OdometryPara(sensor_factors_));
 	system_alignment_ = boost::shared_ptr<SystemAlignment>(new SystemAlignment(sensor_factors_,init_sigma_state_));
 	isam_params_.relinearizeThreshold=0.1;
-	resultofs_.open("../../data/results.txt");
 
 //	if(!fast_replay)
 //	{
@@ -121,11 +121,12 @@ void SensorFusion::Process()
 			current_pose_ = sensor_factors_->current_factor_graph_.pose;
 			current_velocity_ =  sensor_factors_->current_factor_graph_.velocity;
 			current_imu_bias_ =  sensor_factors_->current_factor_graph_.imu_bias;
-			resultofs_<<imu_data_.double_time<<" "<<current_pose_.x()<<" "<<current_pose_.y()<<" "<<current_pose_.z()<<" "<<current_velocity_.transpose()<<values_index_<<std::endl;
 			gnss_para_->SetInitialValue(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
 			imu_para_->UpdateInitialValue();
+			result_local_cartesian_.Reset(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
 			values_index_++;
 		}
+		ConvertToPositionInfo(imu_data_.time_stamp);
 
 	}
 	else
@@ -196,13 +197,10 @@ void SensorFusion::Process()
 			gtsam::ISAM2Result isam2result = isam.update(factors_, values_);
 			results_ = isam.calculateEstimate();
 
-
 			current_pose_ = results_.at<gtsam::Pose3>(X(values_index_));
 			current_velocity_ = results_.at<gtsam::Vector3>(V(values_index_));
 			current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(values_index_));
-
-			resultofs_<<imu_data_.double_time<<" "<<current_pose_.x()<<" "<<current_pose_.y()<<" "<<current_pose_.z()<<" "<<current_velocity_.transpose()<<values_index_<<std::endl;
-
+			ConvertToPositionInfo(imu_data_.time_stamp);
 
 			sensor_factors_->UpdateCurrentVertexInfo(current_pose_,current_velocity_,current_imu_bias_);
 			imu_para_->UpdatePreIntegration(current_imu_bias_);
@@ -245,5 +243,27 @@ void SensorFusion::GetLatestSensorData()
 	imu_data_ = imu_para_->GetIMUData();
 	gnss_data_ = gnss_para_->GetGNSSData();
 	vehicle_data_ = odometry_para_->GetVehicleData();
+}
+void SensorFusion::ConvertToPositionInfo(unsigned long long time)
+{
+	gtsam::Rot3 rotation;
+	current_position_info_.time_stamp = time;
+	//result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),current_position_info_.lat,current_position_info_.lon,current_position_info_.height);
+	current_position_info_.lat = current_pose_.x();
+	current_position_info_.lon = current_pose_.y();
+	current_position_info_.height = current_pose_.z();
+	rotation = current_pose_.rotation();
+	current_position_info_.roll = rotation.roll();
+	current_position_info_.pitch = rotation.pitch();
+	current_position_info_.yaw = rotation.yaw();
 
+	current_position_info_.ve = current_velocity_[0];
+	current_position_info_.vn = current_velocity_[1];
+	current_position_info_.vu = current_velocity_[2];
+	current_position_info_.gyro_bias = current_imu_bias_.gyroscope();
+	current_position_info_.acc_bias = current_imu_bias_.accelerometer();
+}
+PositionInfo SensorFusion::GetLatestPosition()
+{
+	return current_position_info_;
 }
