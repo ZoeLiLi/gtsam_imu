@@ -104,6 +104,8 @@ void IMUPara::AddImuFactor()
 	gtsam::NonlinearFactor::shared_ptr imu_bias_factor(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
 			(B(sensor_factors_->current_factor_graph_.value_index-1),B(sensor_factors_->current_factor_graph_.value_index),
 			 gtsam::imuBias::ConstantBias(gtsam::Z_3x1,gtsam::Z_3x1),gtsam::noiseModel::Diagonal::Sigmas(imu_bias_sigma_)));
+//	imu_factor->print();
+//	imu_bias_factor->print();
 	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_factor);
 	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_bias_factor);
 

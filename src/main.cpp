@@ -2,78 +2,117 @@
 #include <fstream>
 #include "sensor_fusion.h"
 #include <boost/algorithm/string.hpp>
+#include <GeographicLib/LocalCartesian.hpp>
+#include <GeographicLib/Geocentric.hpp>
+#include <GeographicLib/Config.h>
 
 using namespace TADR;
+using namespace gtsam;
+using namespace std;
+using namespace GeographicLib;
 std::vector<ImuData> imu_data_buffer;
 std::vector<GnssData> gnss_data_buffer;
 std::vector<VehicleData> vehicle_data_buffer;
 bool LoadReplayLogData(std::string input_log_path);
 bool LoadIMUData(std::string input_log_path);
 bool LoadGNSSData(std::string input_log_path);
-
+bool PrintResult(PositionInfo result);
+unsigned long long time_shift = 1543220000000;
+ofstream ofs;
 int main()
 {
 
 	boost::shared_ptr<SensorFusion> sensorfusion = boost::shared_ptr<SensorFusion> (new SensorFusion(true,"Event",100));
-//	std::string input_file_path("../../data/GPS_IMU_20181126.txt");
-//	LoadReplayLogData(input_file_path);
-	std::string imu_file_path("../../data/KittiEquivBiasedImu.txt");
-	std::string gnss_file_path("../../data/KittiGps_converted.txt");
-	LoadIMUData(imu_file_path);
-	LoadGNSSData(gnss_file_path);
-
-	int imu_index = 2;
+	std::string input_file_path("../../data/GPS_IMU_20181126.txt");
+	std::string output_file_path("../../data/20181126result.txt");
+	LoadReplayLogData(input_file_path);
+	ofs.open(output_file_path.c_str());
+	if(!ofs.is_open())
+	{
+		std::cout<<"Open result file failed!"<<std::endl;
+	}
+	int imu_index = 0;
 	int count = 0;
-	int gnss_index = 1;
+	int gnss_index = 5;
 	int vehicle_index = 0;
 	bool initialed = false;
 	unsigned long long last_vertex_time = gnss_data_buffer[0].time_stamp;
+	PositionInfo results;
+	double dt = 0.02;
 
 	while(imu_index < imu_data_buffer.size())
 	{
 		sensorfusion->SetIMUData(imu_data_buffer[imu_index]);
-//		std::cout<<imu_index<<std::endl;
+		if(imu_data_buffer[imu_index].delta_time > 1)
+		{
+			dt = 0.02;
+		}
+		else
+		{
+			dt = imu_data_buffer[imu_index].delta_time;
+		}
+
 		if(!initialed)
 		{
-			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) < 0.5*imu_data_buffer[imu_index].delta_time)
+
+			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= 0.5*dt)
 			{
-				std::cout<<gnss_data_buffer[gnss_index].time_stamp<<std::endl;
+				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<<std::endl;
+				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+				cout<<0.5*imu_data_buffer[imu_index].delta_time<<endl;
 				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				std::cout<<"GPS Index"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 				gnss_index ++;
+				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 				sensorfusion->FastReplayLog();
+				results = sensorfusion->GetLatestPosition();
+				PrintResult(results);
 				initialed = true;
 				last_vertex_time = imu_data_buffer[imu_index].time_stamp;
 				count = 0;
-				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<<std::endl;
 			}
 		}
 		else
 		{
-
 			count ++;
-			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) < 0.5*imu_data_buffer[imu_index].delta_time)
+			if(imu_data_buffer[imu_index].double_time > gnss_data_buffer[gnss_index].double_time)
 			{
 				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				std::cout<<"GPS Index"<<gnss_index<<std::endl;
 				gnss_index ++;
+				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 			}
-			if(count >= 10)
-//			if(imu_data_buffer[imu_index].time_stamp > last_vertex_time + 100)
+			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
 			{
 
+				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
+				gnss_index ++;
+				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+			}
+			if(count >= 10)
+			{
+
+				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
 				sensorfusion->FastReplayLog();
+				results = sensorfusion->GetLatestPosition();
+				PrintResult(results);
 				last_vertex_time = imu_data_buffer[imu_index-1].time_index;
 				count  = 0;
 			}
 		}
 
 		imu_index ++;
-
-
 	}
-
 	return 0;
+}
+bool PrintResult(PositionInfo result)
+{
+	ofs<< result.time_stamp<<",";
+	ofs<<std::setprecision(16)<<result.lat<<","<<result.lon<<",";
+	ofs<<std::setprecision(6)<<result.height<<",";
+	ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
+	ofs<<result.roll<<","<<result.pitch<<","<<result.yaw<<",";
+	ofs<<result.gyro_bias(0)<<","<<result.gyro_bias(1)<<","<<result.gyro_bias(2)<<",";
+	ofs<<result.acc_bias(0)<<","<<result.acc_bias(1)<<","<<result.acc_bias(2)<<std::endl;
+	return true;
 }
 
 bool LoadReplayLogData(std::string input_log_path)
@@ -87,6 +126,8 @@ bool LoadReplayLogData(std::string input_log_path)
 	ImuData imu_data;
 	GnssData gnss_data;
 	VehicleData vehicle_data;
+	double previous_imu_time = 0.0;
+	double previous_gnss_time = 0.0;
 
 	while(!ifs.eof())
 	{
@@ -97,35 +138,63 @@ bool LoadReplayLogData(std::string input_log_path)
 		if(vtemp[2] == "GYRODATA")
 		{
 			imu_data.time_stamp = atoll(vtemp[3].c_str());
-			imu_data.gyro_x = atof(vtemp[5].c_str());
-			imu_data.gyro_y = atof(vtemp[4].c_str());
-			imu_data.gyro_z = -atof(vtemp[6].c_str());
+			imu_data.gyro_x = atof(vtemp[4].c_str());
+			imu_data.gyro_y = atof(vtemp[5].c_str());
+			imu_data.gyro_z = atof(vtemp[6].c_str());
 		}
 		if(vtemp[2] == "ACCDATA")
 		{
 			if(atoll(vtemp[3].c_str()) == imu_data.time_stamp)
 			{
-				imu_data.acc_x = atof(vtemp[5].c_str());
-				imu_data.acc_y = atof(vtemp[4].c_str());
-				imu_data.acc_z = -atof(vtemp[6].c_str());
-				imu_data_buffer.push_back(imu_data);
+				imu_data.acc_x = atof(vtemp[4].c_str());
+				imu_data.acc_y = atof(vtemp[5].c_str());
+				imu_data.acc_z = atof(vtemp[6].c_str());
+				imu_data.time_stamp = imu_data.time_stamp - time_shift;
+				imu_data.double_time = imu_data.time_stamp*KMilisecond2Sencond;
+				if(previous_imu_time > 0.0)
+				{
+					imu_data.delta_time = imu_data.double_time - previous_imu_time;
+					if(imu_data.delta_time > 0.0)
+					{
+						imu_data_buffer.push_back(imu_data);
+					}
+				}
+				else
+				{
+					imu_data.delta_time = 0.0;
+					imu_data_buffer.push_back(imu_data);
+				}
+				previous_imu_time = imu_data.double_time;
+
 			}
 		}
 		if(vtemp[2] == "GPSDATA")
 		{
-			gnss_data.time_stamp = atoll(vtemp[3].c_str());
-			gnss_data.lon = atof(vtemp[4].c_str())*KDeg2Rad;
-			gnss_data.lat = atof(vtemp[5].c_str())*KDeg2Rad;
+			gnss_data.time_stamp = atoll(vtemp[3].c_str()) - time_shift;
+			gnss_data.lon = atof(vtemp[4].c_str());
+			gnss_data.lat = atof(vtemp[5].c_str());
 			gnss_data.height = atof(vtemp[6].c_str());
 			gnss_data.std_lat = atof(vtemp[10].c_str());
 			gnss_data.std_lat = atof(vtemp[10].c_str());
 			gnss_data.std_lat = atof(vtemp[11].c_str())*10;
 			gnss_data.is_wgs84 = true;
-			gnss_data_buffer.push_back(gnss_data);
+			gnss_data.double_time = gnss_data.time_stamp*KMilisecond2Sencond;
+			if(previous_gnss_time > 0.0)
+			{
+				if(gnss_data.double_time > previous_gnss_time)
+				{
+					gnss_data_buffer.push_back(gnss_data);
+				}
+			}
+			else
+			{
+				gnss_data_buffer.push_back(gnss_data);
+			}
+			previous_gnss_time = gnss_data.double_time;
 		}
 		if(vtemp[2] == "VEHICLEDATA")
 		{
-			vehicle_data.time_stamp = atoll(vtemp[3].c_str());
+			vehicle_data.time_stamp = atoll(vtemp[3].c_str()) - time_shift;
 			vehicle_data.speed = atof(vtemp[8].c_str());
 			vehicle_data_buffer.push_back(vehicle_data);
 		}

@@ -70,6 +70,8 @@ void SensorFactors::ExtrapolateNextVertexInfo()
 void SensorFactors::SetLatestVertexInfo()
 {
 	// add mutex
+//	current_factor_graph_.values.print();
+//	current_factor_graph_.factors.print();
 	factor_graph_buffer_.push_back(current_factor_graph_);
 	current_factor_graph_.factors.resize(0);
 	if(factor_graph_buffer_.size() > max_buffer_size_)
