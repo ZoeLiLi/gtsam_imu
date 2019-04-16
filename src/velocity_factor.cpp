@@ -1,22 +1,20 @@
-#include "VelocityFactor.h"
+#include "velocity_factor.h"
+#include <gtsam/nonlinear/NonlinearFactor.h>
 
-using namespace std;
-
-//***************************************************************************
-void VelocityFactor::print(const string& s, const KeyFormatter& keyFormatter) const {
-  cout << s << "VelocityFactor on " << keyFormatter(key()) << "\n";
-  cout << "  Velocity measurement: " << velocity_ << "\n";
-  noiseModel_->print("  noise model: ");
+void VelocityFactor::print(const std::string& s,const gtsam::KeyFormatter& keyFormatter) const{
+	std::cout << s <<"VelocityFactor("<<keyFormatter(this->key())<<std::endl;
+	std::cout << "Velocity measurement: " << velocity_<<std::endl;
+	noiseModel_->print(" noise model: ");
 }
 
-//***************************************************************************
-bool VelocityFactor::equals(const NonlinearFactor& expected, double tol) const {
-  const This* e = dynamic_cast<const This*>(&expected);
-  return e != NULL && Base::equals(*e, tol) && traits<Point3>::Equals(velocity_, e->velocity_, tol);
+bool VelocityFactor::equals(const gtsam::NonlinearFactor& expected, double tol) const{
+	const This* e = dynamic_cast<const This*>(&expected);
+	return e != NULL && Base::equals(*e, tol) && gtsam::traits<gtsam::Point3>::Equals(velocity_, e->velocity_, tol);
 }
 
-//***************************************************************************
-Vector VelocityFactor::evaluateError(const Pose3& p,
-    boost::optional<Matrix&> H) const {
-  return p.translation(H) -velocity_;
-}
+gtsam::Vector VelocityFactor::evaluateError(const gtsam::Point3& vel,
+	    boost::optional<gtsam::Matrix&> H1) const {
+	gtsam::Point3 hx = bRn_.rotate(vel,boost::none,H1);
+	return (hx-velocity_);
+	}
+

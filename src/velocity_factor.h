@@ -1,51 +1,54 @@
-#pragma once
+#ifndef VELOCITY_FACTOR_H
+#define VELOCITY_FACTOR_H
 
 #include <gtsam/nonlinear/NonlinearFactor.h>
+#include <gtsam/geometry/Pose3.h>
 
-class VelocityFactor: public NoiseModelFactor2<gtsam::Pose3,gtsam::Vector3> {
+class VelocityFactor: public gtsam::NoiseModelFactor1 <gtsam::Point3> {
 
 private:
 
-  typedef NoiseModelFactor1<gtsam::Pose3,gtsam::Vector3> Base;
+  typedef gtsam::NoiseModelFactor1<gtsam::Point3> Base;
 
-  gtsam::Vector3 velocity_; ///
+  gtsam::Point3 velocity_; ///< Position measurement in cartesian coordinates
+  gtsam::Rot3 bRn_;
 
 public:
 
+  /// shorthand for a smart pointer to a factor
   typedef boost::shared_ptr<VelocityFactor> shared_ptr;
 
   /// Typedef to this class
   typedef VelocityFactor This;
 
   /** default constructor - only use for serialization */
-  VelocityFactor(): velocity_(0,0,0) {}
+  VelocityFactor(): velocity_(0, 0, 0) {}
 
   virtual ~VelocityFactor() {}
 
-  VelocityFactor(Key key, const gtsam::Vector3& velocityIn, const SharedNoiseModel& model) :
-      Base(model, key), velocity_(velocityIn) {
+  VelocityFactor(gtsam::Key key1, const gtsam::Point3& velocityIn,
+		  const gtsam::Rot3& nRb,const gtsam::SharedNoiseModel& model):
+	  Base(model,key1),velocity_(velocityIn),bRn_(nRb.inverse()){
+
   }
 
-  /// @return a deep copy of this factor
   virtual gtsam::NonlinearFactor::shared_ptr clone() const {
     return boost::static_pointer_cast<gtsam::NonlinearFactor>(
         gtsam::NonlinearFactor::shared_ptr(new This(*this)));
   }
 
+  gtsam::Vector evaluateError(const gtsam::Point3& vel,
+         boost::optional<gtsam::Matrix&> H1 = boost::none) const;
   /// print
-  virtual void print(const std::string& s, const KeyFormatter& keyFormatter =
-      DefaultKeyFormatter) const;
+  virtual void print(const std::string& s, const gtsam::KeyFormatter& keyFormatter =
+      gtsam::DefaultKeyFormatter) const;
 
   /// equals
-  virtual bool equals(const NonlinearFactor& expected, double tol = 1e-9) const;
+  virtual bool equals(const gtsam::NonlinearFactor& expected, double tol = 1e-9) const;
 
-  /// @return measurementIn 
-  inline const gtsam::Vector3 & measurementIn() const {
+
+  inline const gtsam::Point3 & measurementIn() const {
     return velocity_;
-
-  /// vector of errors
-  Vector evaluateError(const gtsam::Pose3& p,const gtsam::Vector3& v
-      boost::optional<gtsam::Matrix&> H = boost::none) const;
   }
 
 private:
@@ -57,7 +60,8 @@ private:
     ar
         & boost::serialization::make_nvp("NoiseModelFactor1",
             boost::serialization::base_object<Base>(*this));
-    ar & BOOST_SERIALIZATION_NVP(nT_);
+    ar & BOOST_SERIALIZATION_NVP(velocity_);
   }
 };
 
+#endif
