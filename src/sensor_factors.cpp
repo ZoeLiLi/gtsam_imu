@@ -10,7 +10,6 @@ SensorFactors::SensorFactors(void)
 , max_buffer_size_(1000)
 {
 	UnionVertexInfo();
-
 }
 SensorFactors::~SensorFactors()
 {
