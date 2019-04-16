@@ -56,6 +56,7 @@ typedef struct
 
  typedef struct{
 	 unsigned long long time_stamp;
+	 double double_time;
 	 double speed;
 	 double fl_speed;
 	 double fr_speed;

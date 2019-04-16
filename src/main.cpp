@@ -51,6 +51,22 @@ int main()
 		{
 			dt = imu_data_buffer[imu_index].delta_time;
 		}
+		if(imu_data_buffer[imu_index].double_time > vehicle_data_buffer[vehicle_index].double_time)
+		{
+			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			vehicle_index ++;
+			std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
+		}
+		if(fabs(imu_data_buffer[imu_index].double_time - vehicle_data_buffer[vehicle_index].double_time) <= dt)
+		{
+			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			if(vehicle_index < vehicle_data_buffer.size())
+			{
+				vehicle_index ++;
+			}
+
+
+		}
 
 		if(!initialed)
 		{
@@ -74,20 +90,27 @@ int main()
 		else
 		{
 			count ++;
-			if(imu_data_buffer[imu_index].double_time > gnss_data_buffer[gnss_index].double_time)
+			if(imu_data_buffer[imu_index].double_time > gnss_data_buffer[gnss_index].double_time && gnss_index < gnss_data_buffer.size())
 			{
 				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				gnss_index ++;
+				if(gnss_index < gnss_data_buffer.size())
+				{
+					gnss_index ++;
+				}
 				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 			}
 			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
 			{
 
 				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				gnss_index ++;
+				if(gnss_index < gnss_data_buffer.size())
+				{
+					gnss_index ++;
+				}
 				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 			}
-			if(count >= 10)
+
+			if(count >= 2)
 			{
 
 				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
@@ -196,6 +219,7 @@ bool LoadReplayLogData(std::string input_log_path)
 		{
 			vehicle_data.time_stamp = atoll(vtemp[3].c_str()) - time_shift;
 			vehicle_data.speed = atof(vtemp[8].c_str());
+			vehicle_data.double_time = vehicle_data.time_stamp*KMilisecond2Sencond;
 			vehicle_data_buffer.push_back(vehicle_data);
 		}
 	}

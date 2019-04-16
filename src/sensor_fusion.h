@@ -30,6 +30,7 @@ public:
 	void FastReplayLog();
 	void SetIMUData(ImuData imu_data);
 	void SetGnssData(GnssData gnss_data);
+	void SetVehicleData(VehicleData vehicle_data);
 	PositionInfo GetLatestPosition();
 private:
 	void TimeControl();
