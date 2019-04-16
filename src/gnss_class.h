@@ -6,8 +6,7 @@
 #include "sensor_factors.h"
 #include <gtsam/navigation/GPSFactor.h>
 
-#include <boost/thread/thread.hpp>
-#include <boost/thread/condition.hpp>
+
 #include <GeographicLib/LocalCartesian.hpp>
 #include <GeographicLib/Config.h>
 

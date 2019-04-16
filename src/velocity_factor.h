@@ -4,11 +4,12 @@
 #include <gtsam/nonlinear/NonlinearFactor.h>
 #include <gtsam/geometry/Pose3.h>
 
-class VelocityFactor: public gtsam::NoiseModelFactor1 <gtsam::Point3> {
+namespace TADR{
+class VelocityFactor: public gtsam::NoiseModelFactor1 <gtsam::Vector3> {
 
 private:
 
-  typedef gtsam::NoiseModelFactor1<gtsam::Point3> Base;
+  typedef gtsam::NoiseModelFactor1<gtsam::Vector3> Base;
 
   gtsam::Point3 velocity_; ///< Position measurement in cartesian coordinates
   gtsam::Rot3 bRn_;
@@ -26,7 +27,7 @@ public:
 
   virtual ~VelocityFactor() {}
 
-  VelocityFactor(gtsam::Key key1, const gtsam::Point3& velocityIn,
+  VelocityFactor(gtsam::Key key1, const gtsam::Vector3& velocityIn,
 		  const gtsam::Rot3& nRb,const gtsam::SharedNoiseModel& model):
 	  Base(model,key1),velocity_(velocityIn),bRn_(nRb.inverse()){
 
@@ -37,7 +38,7 @@ public:
         gtsam::NonlinearFactor::shared_ptr(new This(*this)));
   }
 
-  gtsam::Vector evaluateError(const gtsam::Point3& vel,
+  gtsam::Vector evaluateError(const gtsam::Vector3& vel,
          boost::optional<gtsam::Matrix&> H1 = boost::none) const;
   /// print
   virtual void print(const std::string& s, const gtsam::KeyFormatter& keyFormatter =
@@ -47,7 +48,7 @@ public:
   virtual bool equals(const gtsam::NonlinearFactor& expected, double tol = 1e-9) const;
 
 
-  inline const gtsam::Point3 & measurementIn() const {
+  inline const gtsam::Vector3 & measurementIn() const {
     return velocity_;
   }
 
@@ -63,5 +64,6 @@ private:
     ar & BOOST_SERIALIZATION_NVP(velocity_);
   }
 };
+}
 
 #endif

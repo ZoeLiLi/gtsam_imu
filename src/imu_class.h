@@ -8,8 +8,6 @@
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
 
-#include <boost/thread/thread.hpp>
-#include <boost/thread/condition.hpp>
 
 namespace TADR
 {

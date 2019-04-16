@@ -4,6 +4,9 @@
 #include <string>
 #include "constant.h"
 
+
+#include <boost/thread/thread.hpp>
+#include <boost/thread/condition.hpp>
 #include <gtsam/navigation/ImuBias.h>
 namespace TADR
 {

@@ -123,6 +123,7 @@ void SensorFusion::Process()
 			current_imu_bias_ =  sensor_factors_->current_factor_graph_.imu_bias;
 			gnss_para_->SetInitialValue(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
 			imu_para_->UpdateInitialValue();
+			odometry_para_->UpdateInitialValue();
 			result_local_cartesian_.Reset(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
 			values_index_++;
 		}
@@ -236,6 +237,17 @@ void SensorFusion::SetGnssData(GnssData gnss_data)
 	else
 	{
 		std::cout<<"Fail to create gnss para."<<std::endl;
+	}
+}
+void SensorFusion::SetVehicleData(VehicleData vehicle_data)
+{
+	if(odometry_para_)
+	{
+		odometry_para_->SetVehicleData(vehicle_data);
+	}
+	else
+	{
+		std::cout<<"Fail to create odometry para."<<std::endl;
 	}
 }
 void SensorFusion::GetLatestSensorData()

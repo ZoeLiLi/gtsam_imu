@@ -4,6 +4,9 @@
 #include <string>
 #include "constant.h"
 #include "sensor_factors.h"
+#include "velocity_factor.h"
+
+
 
 namespace TADR
 {
@@ -16,10 +19,20 @@ public:
 public:
 	void SetVehicleData(VehicleData vehicle_data);
 	VehicleData GetVehicleData();
+	void UpdateInitialValue();
 private:
-	VehicleData									vehicle_data_;
-	int											vertex_index_;
+	void GenerateVelocityFactor();
+private:
+	bool										initialed_;
+	gtsam::Vector3								velocity_sigma_;
+	gtsam::SharedNoiseModel						velocity_noise_model_;
 	boost::shared_ptr<SensorFactors>			sensor_factors_;
+	boost::thread*								velocity_thread_;
+	boost::mutex								mutex_;
+	boost::condition							condition_;
+
+	VehicleData									vehicle_data_;
+
 
 };
 }
