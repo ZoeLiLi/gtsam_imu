@@ -36,7 +36,7 @@ void OdometryPara::GenerateVelocityFactor()
 			{
 
 				gtsam::Point3 velocity(0.0,vehicle_data_.speed,0.0);
-				gtsam::NonlinearFactor::shared_ptr velocity_factor(new VelocityFactor(
+				gtsam::NonlinearFactor::shared_ptr velocity_factor(new VelocityFactor1(
 						V(sensor_factors_->current_factor_graph_.value_index),velocity,
 						sensor_factors_->current_factor_graph_.pose.rotation(),velocity_noise_model_));
 				sensor_factors_->current_factor_graph_.factors.push_back(velocity_factor);
