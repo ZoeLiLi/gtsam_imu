@@ -1,5 +1,6 @@
 #include<iostream>
 #include <fstream>
+#include <time.h>
 #include "sensor_fusion.h"
 #include <boost/algorithm/string.hpp>
 #include <GeographicLib/LocalCartesian.hpp>
@@ -40,6 +41,7 @@ int main()
 	PositionInfo results;
 	double dt = 0.02;
 
+	clock_t start_time = clock();
 	while(imu_index < imu_data_buffer.size())
 	{
 		sensorfusion->SetIMUData(imu_data_buffer[imu_index]);
@@ -124,17 +126,28 @@ int main()
 
 		imu_index ++;
 	}
+	std::cout<<"Total consume time(s): "<<(clock()-start_time)/CLOCKS_PER_SEC<<std::endl;
 	return 0;
 }
 bool PrintResult(PositionInfo result)
 {
-	ofs<< result.time_stamp<<",";
+	double yaw = 2*KPi - result.yaw;
+	if(yaw > 2*KPi)
+	{
+		yaw = yaw - 2*KPi;
+	}
+	if(yaw < 0 )
+	{
+		yaw = yaw + 2*KPi;
+
+	}
+	ofs<< result.time_stamp<<","<<result.index<<","<<result.fix_status<<",";
 	ofs<<std::setprecision(16)<<result.lat<<","<<result.lon<<",";
 	ofs<<std::setprecision(6)<<result.height<<",";
 	ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
-	ofs<<result.roll<<","<<result.pitch<<","<<result.yaw<<",";
-	ofs<<result.gyro_bias(0)<<","<<result.gyro_bias(1)<<","<<result.gyro_bias(2)<<",";
-	ofs<<result.acc_bias(0)<<","<<result.acc_bias(1)<<","<<result.acc_bias(2)<<std::endl;
+	ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
+	ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
+	ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<std::endl;
 	return true;
 }
 

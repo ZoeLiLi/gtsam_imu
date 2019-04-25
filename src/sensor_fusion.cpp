@@ -11,6 +11,7 @@ using namespace TADR;
 SensorFusion::SensorFusion()
 : exit_(false)
 , initialed_(false)
+, fix_status_(E_FIX_STATUS::E_STATUS_INVALID)
 , triggle_mode_("Period")
 , period_(100)
 , window_length_(100)
@@ -48,6 +49,7 @@ SensorFusion::SensorFusion()
 SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int period)
 : exit_(false)
 , initialed_(false)
+, fix_status_(E_FIX_STATUS::E_STATUS_INVALID)
 , triggle_mode_(triggle_mode)
 , period_(period)
 , window_length_(70)
@@ -125,9 +127,10 @@ void SensorFusion::Process()
 			imu_para_->UpdateInitialValue();
 			odometry_para_->UpdateInitialValue();
 			result_local_cartesian_.Reset(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
+			ConvertToPositionInfo(imu_data_.time_stamp);
 			values_index_++;
 		}
-		ConvertToPositionInfo(imu_data_.time_stamp);
+
 
 	}
 	else
@@ -260,6 +263,9 @@ void SensorFusion::ConvertToPositionInfo(unsigned long long time)
 {
 	gtsam::Rot3 rotation;
 	current_position_info_.time_stamp = time;
+	current_position_info_.index = values_index_;
+	current_position_info_.fix_status = fix_status_;
+
 	//result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),current_position_info_.lat,current_position_info_.lon,current_position_info_.height);
 	current_position_info_.lat = current_pose_.x();
 	current_position_info_.lon = current_pose_.y();
