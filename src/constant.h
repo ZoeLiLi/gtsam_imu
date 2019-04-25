@@ -84,8 +84,17 @@ typedef struct
 		gtsam::SharedNoiseModel sigma_vel;
 		gtsam::SharedNoiseModel sigma_bias;
  }InitSigmaState;
+
+ typedef enum{
+	 E_STATUS_INVALID	= 0x00,
+	 E_STATUS_IMU		= 0x01,
+	 E_STATUS_VEHICLE	= 0x02,
+	 E_STATUS_GNSS		= 0x03,
+ }E_FIX_STATUS;
+
  typedef struct{
 	 unsigned long long time_stamp;
+	 int index;
 	 double lat;
 	 double lon;
 	 double height;
@@ -97,5 +106,6 @@ typedef struct
 	 double yaw;
 	 gtsam::Vector3 gyro_bias;
 	 gtsam::Vector3 acc_bias;
+	 unsigned int fix_status;
  }PositionInfo;
  #endif

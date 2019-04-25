@@ -45,6 +45,7 @@ public:
 private:
 	bool								exit_;
 	bool								initialed_;
+	unsigned int						fix_status_;
 
 
 	boost::shared_ptr<IMUPara>			imu_para_;
