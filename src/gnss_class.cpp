@@ -13,6 +13,7 @@ GNSSPara::GNSSPara(boost::shared_ptr<SensorFactors> sensor_factor)
 {
 	gnss_sigma_<< gtsam::Vector3::Constant(0.0),gtsam::Vector3::Constant(1.0/0.07);
 	gnss_noise_model_ = gtsam::noiseModel::Diagonal::Precisions(gnss_sigma_,1);
+	gnss_file_.open("../../data/GPS.txt");
 //	gnss_thread_ = new boost::thread(boost::BOOST_BIND(&GNSSPara::GenerateGNSSFactor,this));
 
 }
@@ -51,6 +52,8 @@ void GNSSPara::GenerateGNSSFactor()
 			if(gnss_data_.is_wgs84)
 			{
 				gnss_local_cartesian_.Forward(gnss_data_.lat,gnss_data_.lon,gnss_data_.height,gnss_data_.x,gnss_data_.y,gnss_data_.z);
+				gnss_file_<<gnss_data_.time_stamp<<" "<<gnss_data_.x<<" "<<gnss_data_.y<<" "<<gnss_data_.z<<std::endl;
+
 			}
 			gnss_sigma_(3) = gnss_data_.std_lat;
 			gnss_sigma_(4) = gnss_data_.std_lon;
@@ -58,7 +61,9 @@ void GNSSPara::GenerateGNSSFactor()
 
 			gtsam::Point3 gnss_position(gnss_data_.x,gnss_data_.y,gnss_data_.z);
 			gtsam::Pose3 gnss_pose(gtsam::Pose3(sensor_factors_->current_factor_graph_.pose.rotation(),gnss_position));
-			gtsam::NonlinearFactor::shared_ptr gnss_factor(new gtsam::PriorFactor<gtsam::Pose3>(X(sensor_factors_->current_factor_graph_.value_index),gnss_pose,gnss_noise_model_));
+			gtsam::SharedNoiseModel gnss_noise_model = gtsam::noiseModel::Diagonal::Sigmas(gtsam::Vector3(0.5,0.5,1));
+			gtsam::NonlinearFactor::shared_ptr gnss_factor(new gtsam::GPSFactor(X(sensor_factors_->current_factor_graph_.value_index),gnss_position,gnss_noise_model));
+			//gtsam::NonlinearFactor::shared_ptr gnss_factor(new gtsam::PriorFactor<gtsam::Pose3>(X(sensor_factors_->current_factor_graph_.value_index),gnss_pose,gnss_noise_model_));
 			//sensor_factors_->current_factor_graph_.pose.print();
 
 		//	gnss_factor->print();

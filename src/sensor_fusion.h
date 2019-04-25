@@ -42,10 +42,11 @@ public:
 	ImuData								imu_data_;
 	GnssData							gnss_data_;
 	VehicleData							vehicle_data_;
+	bool								is_still_;
 private:
+	unsigned int						fix_status_;
 	bool								exit_;
 	bool								initialed_;
-
 
 	boost::shared_ptr<IMUPara>			imu_para_;
 	boost::shared_ptr<GNSSPara>			gnss_para_;

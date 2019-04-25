@@ -1,6 +1,7 @@
 #ifndef GNSS_CLASS_H
 #define GNSS_CLASS_H
 #include <iostream>
+#include <fstream>
 #include <string>
 #include "constant.h"
 #include "sensor_factors.h"
@@ -39,6 +40,7 @@ private:
 	boost::mutex						mutex_;
 	boost::condition					condition_;
 	GeographicLib::LocalCartesian		gnss_local_cartesian_;
+	std::ofstream						gnss_file_;
 }
 ;
 }

@@ -1,5 +1,6 @@
 #include<iostream>
 #include <fstream>
+#include <time.h>
 #include "sensor_fusion.h"
 #include <boost/algorithm/string.hpp>
 #include <GeographicLib/LocalCartesian.hpp>
@@ -39,7 +40,9 @@ int main()
 	unsigned long long last_vertex_time = gnss_data_buffer[0].time_stamp;
 	PositionInfo results;
 	double dt = 0.02;
+	bool odd  = false;
 
+	clock_t start_time = clock();
 	while(imu_index < imu_data_buffer.size())
 	{
 		sensorfusion->SetIMUData(imu_data_buffer[imu_index]);
@@ -55,11 +58,28 @@ int main()
 		{
 			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
 			vehicle_index ++;
-			std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
+		//	std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
 		}
-		if(fabs(imu_data_buffer[imu_index].double_time - vehicle_data_buffer[vehicle_index].double_time) <= dt)
+		if(fabs(imu_data_buffer[imu_index].double_time - vehicle_data_buffer[vehicle_index].double_time) <= dt )
 		{
+			if(fabs(vehicle_data_buffer[vehicle_index].speed) <= 0.1 )
+			{
+				sensorfusion->is_still_ = true;
+				vehicle_data_buffer[vehicle_index].is_still = true;
+			}
+			else
+			{
+				sensorfusion->is_still_ = false;
+				vehicle_data_buffer[vehicle_index].is_still = false;
+			}
+			if(odd)
+			{
 			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			odd = true;
+			}
+			{
+				odd = true;
+			}
 			if(vehicle_index < vehicle_data_buffer.size())
 			{
 				vehicle_index ++;
@@ -83,6 +103,7 @@ int main()
 				results = sensorfusion->GetLatestPosition();
 				PrintResult(results);
 				initialed = true;
+				odd = false;
 				last_vertex_time = imu_data_buffer[imu_index].time_stamp;
 				count = 0;
 			}
@@ -92,28 +113,29 @@ int main()
 			count ++;
 			if(imu_data_buffer[imu_index].double_time > gnss_data_buffer[gnss_index].double_time && gnss_index < gnss_data_buffer.size())
 			{
-				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				if(gnss_index < gnss_data_buffer.size())
-				{
-					gnss_index ++;
-				}
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
-			}
-			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
-			{
 
 				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
 				if(gnss_index < gnss_data_buffer.size())
 				{
 					gnss_index ++;
 				}
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+				//std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+			}
+			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
+			{
+				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
+
+				if(gnss_index < gnss_data_buffer.size())
+				{
+					gnss_index ++;
+				}
+				//std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 			}
 
 			if(count >= 2)
 			{
 
-				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
+				//std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
 				sensorfusion->FastReplayLog();
 				results = sensorfusion->GetLatestPosition();
 				PrintResult(results);
@@ -124,17 +146,29 @@ int main()
 
 		imu_index ++;
 	}
+	clock_t end_time = clock();
+	std::cout<<"Total consume time(s): "<<(clock()-start_time)/CLOCKS_PER_SEC<<std::endl;
 	return 0;
 }
 bool PrintResult(PositionInfo result)
 {
-	ofs<< result.time_stamp<<",";
+	double yaw = 2*KPi - result.yaw ;
+	if(yaw > 2*KPi)
+	{
+		yaw = yaw - 2*KPi;
+	}
+	if(yaw < 0)
+	{
+		yaw = yaw + 2*KPi;
+	}
+
+	ofs<< result.time_stamp<<","<<result.index<<","<<result.fix_status<<",";
 	ofs<<std::setprecision(16)<<result.lat<<","<<result.lon<<",";
 	ofs<<std::setprecision(6)<<result.height<<",";
 	ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
-	ofs<<result.roll<<","<<result.pitch<<","<<result.yaw<<",";
-	ofs<<result.gyro_bias(0)<<","<<result.gyro_bias(1)<<","<<result.gyro_bias(2)<<",";
-	ofs<<result.acc_bias(0)<<","<<result.acc_bias(1)<<","<<result.acc_bias(2)<<std::endl;
+	ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
+	ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
+	ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<std::endl;
 	return true;
 }
 

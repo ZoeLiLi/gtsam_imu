@@ -9,11 +9,13 @@ using namespace TADR;
 
 
 SensorFusion::SensorFusion()
-: exit_(false)
+: fix_status_(E_FIX_STATUS::E_STATUS_INVALID)
+, exit_(false)
+, is_still_(false)
 , initialed_(false)
 , triggle_mode_("Period")
 , period_(100)
-, window_length_(100)
+, window_length_(90)
 , process_thread_(NULL)
 , time_control_thread_(NULL)
 , init_sigma_rotation_(gtsam::Vector3::Constant(0.1))
@@ -46,11 +48,13 @@ SensorFusion::SensorFusion()
 }
 
 SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int period)
-: exit_(false)
+: fix_status_(E_FIX_STATUS::E_STATUS_INVALID)
+, exit_(false)
+, is_still_(false)
 , initialed_(false)
 , triggle_mode_(triggle_mode)
 , period_(period)
-, window_length_(70)
+, window_length_(90)
 , process_thread_(NULL)
 , time_control_thread_(NULL)
 , init_sigma_rotation_(gtsam::Vector3::Constant(0.1))
@@ -125,14 +129,19 @@ void SensorFusion::Process()
 			imu_para_->UpdateInitialValue();
 			odometry_para_->UpdateInitialValue();
 			result_local_cartesian_.Reset(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
+
+			fix_status_ = E_STATUS_GNSS;
+			ConvertToPositionInfo(imu_data_.time_stamp);
 			values_index_++;
+			fix_status_ = E_STATUS_IMU;
 		}
-		ConvertToPositionInfo(imu_data_.time_stamp);
+
 
 	}
 	else
 	{
 
+		std::cout<<"Vertex index:"<<sensor_factors_->current_factor_graph_.value_index<<std::endl;
 		imu_data_ = imu_para_->GetIMUData();
 		imu_para_->AddImuFactor();
 		sensor_factors_->SetCurrentTimeStamp(imu_data_.time_stamp);
@@ -198,13 +207,21 @@ void SensorFusion::Process()
 			gtsam::ISAM2Result isam2result = isam.update(factors_, values_);
 			results_ = isam.calculateEstimate();
 
-			current_pose_ = results_.at<gtsam::Pose3>(X(values_index_));
-			current_velocity_ = results_.at<gtsam::Vector3>(V(values_index_));
-			current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(values_index_));
-			ConvertToPositionInfo(imu_data_.time_stamp);
+			if(!is_still_)
+			{
+				current_pose_ = results_.at<gtsam::Pose3>(X(values_index_));
+				current_velocity_ = results_.at<gtsam::Vector3>(V(values_index_));
+				current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(values_index_));
+			}
+			else
+			{
+				current_velocity_ = gtsam::Vector3::Zero();
+			}
 
+			ConvertToPositionInfo(imu_data_.time_stamp);
 			sensor_factors_->UpdateCurrentVertexInfo(current_pose_,current_velocity_,current_imu_bias_);
 			imu_para_->UpdatePreIntegration(current_imu_bias_);
+			fix_status_ = E_STATUS_IMU;
 
 			values_.clear();
 			factors_.resize(0);
@@ -232,7 +249,12 @@ void SensorFusion::SetGnssData(GnssData gnss_data)
 {
 	if(gnss_para_)
 	{
-		gnss_para_->SetGNSSData(gnss_data);
+		if(!is_still_)
+		{
+			gnss_para_->SetGNSSData(gnss_data);
+			fix_status_ += E_STATUS_GNSS;
+		}
+
 	}
 	else
 	{
@@ -244,6 +266,7 @@ void SensorFusion::SetVehicleData(VehicleData vehicle_data)
 	if(odometry_para_)
 	{
 		odometry_para_->SetVehicleData(vehicle_data);
+		fix_status_ += E_STATUS_VEHICLE;
 	}
 	else
 	{
@@ -259,8 +282,10 @@ void SensorFusion::GetLatestSensorData()
 void SensorFusion::ConvertToPositionInfo(unsigned long long time)
 {
 	gtsam::Rot3 rotation;
+	current_position_info_.fix_status = fix_status_;
 	current_position_info_.time_stamp = time;
-	//result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),current_position_info_.lat,current_position_info_.lon,current_position_info_.height);
+	current_position_info_.index = values_index_;
+//result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),current_position_info_.lat,current_position_info_.lon,current_position_info_.height);
 	current_position_info_.lat = current_pose_.x();
 	current_position_info_.lon = current_pose_.y();
 	current_position_info_.height = current_pose_.z();
@@ -274,6 +299,7 @@ void SensorFusion::ConvertToPositionInfo(unsigned long long time)
 	current_position_info_.vu = current_velocity_[2];
 	current_position_info_.gyro_bias = current_imu_bias_.gyroscope();
 	current_position_info_.acc_bias = current_imu_bias_.accelerometer();
+
 }
 PositionInfo SensorFusion::GetLatestPosition()
 {

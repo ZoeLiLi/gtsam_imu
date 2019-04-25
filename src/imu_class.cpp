@@ -14,11 +14,11 @@ IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor)
 {
 	prior_imu_bias_ = gtsam::imuBias::ConstantBias(acc_bias_,gyro_bias_);
 	imu_params_ = boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>(new gtsam::PreintegratedCombinedMeasurements::Params(gn_));
-	imu_params_->accelerometerCovariance = gtsam::I_3x3*pow(0.0565,2.0); //VRW
+	imu_params_->accelerometerCovariance = gtsam::I_3x3*pow(0.0033,2.0); //VRW
 	imu_params_->integrationCovariance = gtsam::I_3x3*1e-9;
-	imu_params_->gyroscopeCovariance = gtsam::I_3x3*pow(4.0e-5,2.0);  //ARW
-	imu_params_->biasAccCovariance = gtsam::I_3x3*pow(0.00002,2.0); //bias_std^2
-	imu_params_->biasOmegaCovariance = gtsam::I_3x3*pow(0.001,2.0); //bias_std^2;
+	imu_params_->gyroscopeCovariance = gtsam::I_3x3*pow(5.8e-4,2.0);  //ARW
+	imu_params_->biasAccCovariance = gtsam::I_3x3*pow(0.2*KMG_2_MPS2,2.0); //bias_std^2
+	imu_params_->biasOmegaCovariance = gtsam::I_3x3*pow(25.2*KDPH_2_RPS,2.0); //bias_std^2;
 	imu_params_->biasAccOmegaInt = gtsam::I_6x6*1e-5;
 
 	//add lever-arm to imu_params_ if exist
@@ -43,8 +43,8 @@ IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor,int frequency)
 	imu_params_->accelerometerCovariance = gtsam::I_3x3*pow(0.0565,2.0); //VRW
 	imu_params_->integrationCovariance = gtsam::I_3x3*1e-9;
 	imu_params_->gyroscopeCovariance = gtsam::I_3x3*pow(4.0e-5,2.0);  //ARW
-	imu_params_->biasAccCovariance = gtsam::I_3x3*pow(0.00002,2.0); //bias_std^2
-	imu_params_->biasOmegaCovariance = gtsam::I_3x3*pow(0.001,2.0); //bias_std^2;
+	imu_params_->biasAccCovariance = gtsam::I_3x3*pow(0.0002,2.0); //bias_std^2
+	imu_params_->biasOmegaCovariance = gtsam::I_3x3*pow(0.01,2.0); //bias_std^2;
 	imu_params_->biasAccOmegaInt = gtsam::I_6x6*1e-5;
 
 	preintegrated_ = new gtsam::PreintegratedCombinedMeasurements(imu_params_,prior_imu_bias_);
