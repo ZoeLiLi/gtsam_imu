@@ -53,102 +53,83 @@ int main()
 		{
 			dt = imu_data_buffer[imu_index].delta_time;
 		}
-		if(imu_data_buffer[imu_index].double_time > vehicle_data_buffer[vehicle_index].double_time)
+
+		while(imu_data_buffer[imu_index].double_time > (vehicle_data_buffer[vehicle_index].double_time + dt))
 		{
-			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
 			vehicle_index ++;
 			std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
 		}
+		while(imu_data_buffer[imu_index].double_time > (gnss_data_buffer[gnss_index].double_time + dt) && gnss_index < gnss_data_buffer.size())
+		{
+			gnss_index ++;
+			std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+		}
+
+
 		if(fabs(imu_data_buffer[imu_index].double_time - vehicle_data_buffer[vehicle_index].double_time) <= dt)
 		{
-			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			//sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
 			if(vehicle_index < vehicle_data_buffer.size())
 			{
 				vehicle_index ++;
 			}
-
-
 		}
-
-		if(!initialed)
+		if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
 		{
 
-			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= 0.5*dt)
+			sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
+			if(gnss_index < gnss_data_buffer.size())
 			{
-				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<<std::endl;
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
-				cout<<0.5*imu_data_buffer[imu_index].delta_time<<endl;
-				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
 				gnss_index ++;
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
-				sensorfusion->FastReplayLog();
-				results = sensorfusion->GetLatestPosition();
-				PrintResult(results);
-				initialed = true;
-				last_vertex_time = imu_data_buffer[imu_index].time_stamp;
-				count = 0;
 			}
+			std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 		}
-		else
+		count ++;
+
+		if(count >= 10)
 		{
-			count ++;
-			if(imu_data_buffer[imu_index].double_time > gnss_data_buffer[gnss_index].double_time && gnss_index < gnss_data_buffer.size())
-			{
-				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				if(gnss_index < gnss_data_buffer.size())
-				{
-					gnss_index ++;
-				}
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
-			}
-			if(fabs(imu_data_buffer[imu_index].double_time - gnss_data_buffer[gnss_index].double_time) <= dt)
-			{
 
-				sensorfusion->SetGnssData(gnss_data_buffer[gnss_index]);
-				if(gnss_index < gnss_data_buffer.size())
-				{
-					gnss_index ++;
-				}
-				std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
-			}
-
-			if(count >= 2)
-			{
-
-				std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
-				sensorfusion->FastReplayLog();
-				results = sensorfusion->GetLatestPosition();
-				PrintResult(results);
-				last_vertex_time = imu_data_buffer[imu_index-1].time_index;
-				count  = 0;
-			}
+			std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
+			sensorfusion->FastReplayLog();
+			results = sensorfusion->GetLatestPosition();
+			PrintResult(results);
+			last_vertex_time = imu_data_buffer[imu_index-1].time_index;
+			count  = 0;
 		}
-
 		imu_index ++;
 	}
+
 	std::cout<<"Total consume time(s): "<<(clock()-start_time)/CLOCKS_PER_SEC<<std::endl;
 	return 0;
 }
 bool PrintResult(PositionInfo result)
 {
-	double yaw = 2*KPi - result.yaw;
-	if(yaw > 2*KPi)
+	if(result.initialed)
 	{
-		yaw = yaw - 2*KPi;
-	}
-	if(yaw < 0 )
-	{
-		yaw = yaw + 2*KPi;
+		double yaw = 2*KPi - result.yaw;
+		if(yaw > 2*KPi)
+		{
+			yaw = yaw - 2*KPi;
+		}
+		if(yaw < 0 )
+		{
+			yaw = yaw + 2*KPi;
 
+		}
+		ofs<< result.time_stamp<<","<<result.index<<","<<result.fix_status<<",";
+		ofs<<std::setprecision(16)<<result.lat<<","<<result.lon<<",";
+		ofs<<std::setprecision(6)<<result.height<<",";
+		ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
+		ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
+		ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
+		ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<","<<result.time_consum<<std::endl;
+		return true;
 	}
-	ofs<< result.time_stamp<<","<<result.index<<","<<result.fix_status<<",";
-	ofs<<std::setprecision(16)<<result.lat<<","<<result.lon<<",";
-	ofs<<std::setprecision(6)<<result.height<<",";
-	ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
-	ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
-	ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
-	ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<std::endl;
-	return true;
+	else
+	{
+		return false;
+	}
 }
 
 bool LoadReplayLogData(std::string input_log_path)

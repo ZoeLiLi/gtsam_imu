@@ -25,7 +25,7 @@ bool SystemAlignment::Alignment(ImuData imu_data, GnssData gnss_data,VehicleData
 			{
 				sensor_factors_->current_factor_graph_.value_index = 0;
 				sensor_factors_->current_factor_graph_.time_stamp = imu_data.time_stamp;
-				gtsam::Point3 position(gnss_data.x,gnss_data.y,gnss_data.z);
+				gtsam::Point3 position(0.0,0.0,0.0);
 				gtsam::Rot3 R;
 
 				sensor_factors_->current_factor_graph_.pose = gtsam::Pose3(R,position);
@@ -50,10 +50,10 @@ bool SystemAlignment::Alignment(ImuData imu_data, GnssData gnss_data,VehicleData
 				sensor_factors_->current_factor_graph_.factors.push_back(velFactor);
 
 				sensor_factors_->SetLatestVertexInfo();
-				sensor_factors_->UpdateCurrentVertexInfo(
-						sensor_factors_->current_factor_graph_.pose,
-						sensor_factors_->current_factor_graph_.velocity,
-						sensor_factors_->current_factor_graph_.imu_bias);
+//				sensor_factors_->UpdateCurrentVertexInfo(
+//						sensor_factors_->current_factor_graph_.pose,
+//						sensor_factors_->current_factor_graph_.velocity,
+//						sensor_factors_->current_factor_graph_.imu_bias);
 				std::cout<<"Success to align!"<<std::endl;
 			}
 			else

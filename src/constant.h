@@ -93,6 +93,7 @@ typedef struct
  }E_FIX_STATUS;
 
  typedef struct{
+	 bool initialed;
 	 unsigned long long time_stamp;
 	 int index;
 	 double lat;
@@ -107,5 +108,6 @@ typedef struct
 	 gtsam::Vector3 gyro_bias;
 	 gtsam::Vector3 acc_bias;
 	 unsigned int fix_status;
+	 double time_consum;
  }PositionInfo;
  #endif

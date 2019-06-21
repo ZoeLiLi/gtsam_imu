@@ -1,9 +1,10 @@
 #include"sensor_fusion.h"
 #include <fstream>
+#include <time.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <boost/chrono.hpp>
 #include <boost/algorithm/string.hpp>
-
+#include <gtsam/base/FastList.h>
 
 using namespace TADR;
 
@@ -38,6 +39,7 @@ SensorFusion::SensorFusion()
 	system_alignment_ = boost::shared_ptr<SystemAlignment>(new SystemAlignment(sensor_factors_,init_sigma_state_));
 	isam_params_.relinearizeThreshold=0.1;
 
+
 //	process_thread_ = new boost::thread(boost::BOOST_BIND(&SensorFusion::Run,this));
 //	if(triggle_mode_ == "Period")
 //	{
@@ -60,6 +62,7 @@ SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int perio
 , init_sigma_gyro_(gtsam::Vector3::Constant(5.0e-5))
 , init_sigma_acc_(gtsam::Vector3::Constant(0.1))
 , result_local_cartesian_(0.0,0.0,0.0,GeographicLib::Geocentric::WGS84())
+, values_index_(0)
 {
 	sigma_pose_ << init_sigma_rotation_,init_sigma_position_;
 	sigma_bias_ << init_sigma_acc_,init_sigma_gyro_;
@@ -110,7 +113,6 @@ bool SensorFusion::Run()
 }
 void SensorFusion::Process()
 {
-	int window_index = 0;
 	if (!initialed_)
 	{
 		imu_data_ = imu_para_->GetIMUData();
@@ -120,9 +122,14 @@ void SensorFusion::Process()
 
 		if(initialed_)
 		{
+			std::cout<<"Initialed!"<<std::endl;
 			current_pose_ = sensor_factors_->current_factor_graph_.pose;
 			current_velocity_ =  sensor_factors_->current_factor_graph_.velocity;
 			current_imu_bias_ =  sensor_factors_->current_factor_graph_.imu_bias;
+			isam_.update(sensor_factors_->current_factor_graph_.factors,sensor_factors_->current_factor_graph_.values);
+			sensor_factors_->current_factor_graph_.factors.resize(0);
+			sensor_factors_->current_factor_graph_.values.clear();
+			current_position_info_.initialed = true;
 			gnss_para_->SetInitialValue(gnss_data_.lat,gnss_data_.lon,gnss_data_.height);
 			imu_para_->UpdateInitialValue();
 			odometry_para_->UpdateInitialValue();
@@ -130,89 +137,46 @@ void SensorFusion::Process()
 			ConvertToPositionInfo(imu_data_.time_stamp);
 			values_index_++;
 		}
-
-
 	}
 	else
 	{
+
+		// predict current pose
+		sensor_factors_->UpdateCurrentVertexInfo(current_pose_,current_velocity_,current_imu_bias_);
 
 		imu_data_ = imu_para_->GetIMUData();
 		imu_para_->AddImuFactor();
 		sensor_factors_->SetCurrentTimeStamp(imu_data_.time_stamp);
 
-
-		sensor_factors_->SetLatestVertexInfo();
-
-		if(sensor_factors_->factor_graph_buffer_.size()> 0)
+	//	sensor_factors_->SetLatestVertexInfo();
+		if(values_index_ >= 500)
 		{
-			int values_length = sensor_factors_->factor_graph_buffer_.size();
-			if(values_length <= window_length_)
-			{
-				while(window_index < values_length)
-				{
-					values_.insert(sensor_factors_->factor_graph_buffer_[window_index].values);
-					if(sensor_factors_->factor_graph_buffer_[window_index].factors.size()>0)
-					{
-						factors_.push_back(sensor_factors_->factor_graph_buffer_[window_index].factors.begin(),sensor_factors_->factor_graph_buffer_[window_index].factors.end());
-
-					}
-					window_index++;
-				}
-			}
-			else
-			{
-				std::vector<VertexInfo>::iterator it;
-				gtsam::FastVector<gtsam::NonlinearFactor::shared_ptr>::iterator fit;
-				it = sensor_factors_->factor_graph_buffer_.end();
-				it -= window_length_;
-				// lock the first value
-				values_.insert((*it).values);
-				factors_.add(gtsam::PriorFactor<gtsam::Pose3>(X((*it).value_index),(*it).pose,init_sigma_state_.sigma_pose));
-				factors_.add(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>(B((*it).value_index),(*it).imu_bias,init_sigma_state_.sigma_bias));
-				factors_.add(gtsam::PriorFactor<gtsam::Vector3>(V((*it).value_index),(*it).velocity,init_sigma_state_.sigma_vel));
-
-				if((*it).factors.size() > 0)
-				{
-					for(fit = (*it).factors.begin();fit != (*it).factors.end();fit++)
-					{
-						if(typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::Pose3>) &&
-							typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::imuBias::ConstantBias>) &&
-							typeid(*(*fit)) != typeid(gtsam::PriorFactor<gtsam::Vector3>))
-						{
-							factors_.push_back(*fit);
-						}
-					}
-				}
-
-				// add later values and factors
-				for(++it;it!=sensor_factors_->factor_graph_buffer_.end();it++)
-				{
-					values_.insert((*it).values);
-					if((*it).factors.size()>0)
-					{
-						factors_.push_back((*it).factors.begin(),(*it).factors.end());
-					}
-				}
-
-			}
-
-
-			gtsam::ISAM2 isam(isam_params_);
-			gtsam::ISAM2Result isam2result = isam.update(factors_, values_);
-			results_ = isam.calculateEstimate();
-
-			current_pose_ = results_.at<gtsam::Pose3>(X(values_index_));
-			current_velocity_ = results_.at<gtsam::Vector3>(V(values_index_));
-			current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(values_index_));
-			ConvertToPositionInfo(imu_data_.time_stamp);
-
-			sensor_factors_->UpdateCurrentVertexInfo(current_pose_,current_velocity_,current_imu_bias_);
-			imu_para_->UpdatePreIntegration(current_imu_bias_);
-
-			values_.clear();
-			factors_.resize(0);
-			values_index_ ++;
+			gtsam::FastList<gtsam::Key> list;
+			list.push_back(X(values_index_-500));
+			list.push_back(V(values_index_-500));
+			list.push_back(B(values_index_-500));
+			isam_.marginalizeLeaves(list);
 		}
+
+		const clock_t begin_time = clock();
+		gtsam::ISAM2Result isam2result = isam_.update(sensor_factors_->current_factor_graph_.factors, sensor_factors_->current_factor_graph_.values);
+		results_ = isam_.calculateEstimate();
+		const clock_t end_time = clock();
+		double time_consum= double(end_time - begin_time)/CLOCKS_PER_SEC;
+
+		sensor_factors_->current_factor_graph_.factors.resize(0);
+		sensor_factors_->current_factor_graph_.values.clear();
+
+
+		current_pose_ = results_.at<gtsam::Pose3>(X(values_index_));
+		current_velocity_ = results_.at<gtsam::Vector3>(V(values_index_));
+		current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(values_index_));
+		ConvertToPositionInfo(imu_data_.time_stamp,time_consum);
+
+	//	sensor_factors_->UpdateCurrentVertexInfo(current_pose_,current_velocity_,current_imu_bias_);
+		imu_para_->UpdatePreIntegration(current_imu_bias_);
+
+		values_index_ ++;
 	}
 }
 void SensorFusion::FastReplayLog()
@@ -259,7 +223,7 @@ void SensorFusion::GetLatestSensorData()
 	gnss_data_ = gnss_para_->GetGNSSData();
 	vehicle_data_ = odometry_para_->GetVehicleData();
 }
-void SensorFusion::ConvertToPositionInfo(unsigned long long time)
+void SensorFusion::ConvertToPositionInfo(unsigned long long time,const double time_consum)
 {
 	gtsam::Rot3 rotation;
 	current_position_info_.time_stamp = time;
@@ -280,6 +244,7 @@ void SensorFusion::ConvertToPositionInfo(unsigned long long time)
 	current_position_info_.vu = current_velocity_[2];
 	current_position_info_.gyro_bias = current_imu_bias_.gyroscope();
 	current_position_info_.acc_bias = current_imu_bias_.accelerometer();
+	current_position_info_.time_consum = time_consum;
 }
 PositionInfo SensorFusion::GetLatestPosition()
 {
