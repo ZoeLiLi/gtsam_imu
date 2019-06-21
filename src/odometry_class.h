@@ -4,7 +4,7 @@
 #include <string>
 #include "constant.h"
 #include "sensor_factors.h"
-#include "velocity_factor.h"
+#include "factors/velocity_factor.h"
 
 
 

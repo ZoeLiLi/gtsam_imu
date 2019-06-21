@@ -16,7 +16,7 @@ bool VelocityFactor1::equals(const gtsam::NonlinearFactor& expected, double tol)
 gtsam::Vector VelocityFactor1::evaluateError(const gtsam::Vector3& vel,
 	    boost::optional<gtsam::Matrix&> H1) const {
 	gtsam::Vector3 hx = bRn_.rotate(vel,boost::none,H1);
-	return (hx-velocity_);
+	return (vel-velocity_);
 	}
 
 void VelocityFactor2::print(const std::string& s,const gtsam::KeyFormatter& keyFormatter) const{

@@ -45,7 +45,8 @@ set (HEADER_FILES ${SOURCE_FOLDER}/alignment.h
 		  ${SOURCE_FOLDER}/odometry_class.h
 		  ${SOURCE_FOLDER}/sensor_factors.h
 		  ${SOURCE_FOLDER}/sensor_fusion.h
-		  ${SOURCE_FOLDER}/velocity_factor.h)
+		  ${SOURCE_FOLDER}/factors/velocity_factor.h
+		  ${SOURCE_FOLDER}/factors/gnss_factor.h)
 
 set (SOURCE_FILES ${SOURCE_FOLDER}/alignment.cpp
 		  ${SOURCE_FOLDER}/gnss_class.cpp
@@ -55,7 +56,8 @@ set (SOURCE_FILES ${SOURCE_FOLDER}/alignment.cpp
 		  ${SOURCE_FOLDER}/odometry_class.cpp
 		  ${SOURCE_FOLDER}/sensor_factors.cpp
 		  ${SOURCE_FOLDER}/sensor_fusion.cpp
-		  ${SOURCE_FOLDER}/velocity_factor.cpp)
+		  ${SOURCE_FOLDER}/factors/velocity_factor.cpp
+		  ${SOURCE_FOLDER}/factors/gnss_factor.cpp)
 include_directories(${SOURCE_FOLDER})
 
 add_executable( multiple_sensor_fusion ${SOURCE_FILES} ${HEAD_FILES})							  
