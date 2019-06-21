@@ -109,8 +109,8 @@ void IMUPara::AddImuFactor()
 	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_factor);
 	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_bias_factor);
 
-//	sensor_factors_->current_factor_graph_.factors.push_back(imu_factor);
-//	sensor_factors_->current_factor_graph_.factors.push_back(imu_bias_factor);
+	sensor_factors_->current_factor_graph_.factors.push_back(imu_factor);
+	sensor_factors_->current_factor_graph_.factors.push_back(imu_bias_factor);
 
 	imu_count_ = 0;
 

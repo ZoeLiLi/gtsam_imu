@@ -36,7 +36,7 @@ private:
 	void TimeControl();
 	void Process();
 	void GetLatestSensorData();
-	void ConvertToPositionInfo(unsigned long long time);
+	void ConvertToPositionInfo(unsigned long long time,const double time_consum = 0.0);
 
 public:
 	ImuData								imu_data_;
@@ -60,6 +60,7 @@ private:
 	gtsam::Values						results_;
 
 	gtsam::ISAM2Params 					isam_params_;
+	gtsam::ISAM2						isam_;
 	GeographicLib::LocalCartesian		result_local_cartesian_;
 
 	std::string							triggle_mode_;
