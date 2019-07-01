@@ -13,6 +13,7 @@ private:
 
   gtsam::Point3 velocity_; ///< Position measurement in cartesian coordinates
   gtsam::Rot3 bRn_;
+  double speed_;
 
 public:
 
@@ -23,15 +24,19 @@ public:
   typedef VelocityFactor1 This;
 
   /** default constructor - only use for serialization */
-  VelocityFactor1(): velocity_(0, 0, 0) {}
+ // VelocityFactor1(): velocity_(0, 0, 0) {}
+  VelocityFactor1(): speed_(0) {}
 
   virtual ~VelocityFactor1() {}
 
-  VelocityFactor1(gtsam::Key key1, const gtsam::Vector3& velocityIn,
-		  const gtsam::Rot3& nRb,const gtsam::SharedNoiseModel& model):
-	  Base(model,key1),velocity_(velocityIn),bRn_(nRb.inverse()){
-
-  }
+//  VelocityFactor1(gtsam::Key key1, const gtsam::Vector3& velocityIn,
+//		  const gtsam::Rot3& nRb,const gtsam::SharedNoiseModel& model):
+//	  Base(model,key1),velocity_(velocityIn),bRn_(nRb.inverse()){
+//
+//  }
+  VelocityFactor1(gtsam::Key key1, const double& velocityIn,const gtsam::SharedNoiseModel& model):
+  	  Base(model,key1),speed_(velocityIn){
+    }
 
   virtual gtsam::NonlinearFactor::shared_ptr clone() const {
     return boost::static_pointer_cast<gtsam::NonlinearFactor>(

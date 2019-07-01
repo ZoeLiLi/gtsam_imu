@@ -26,10 +26,10 @@ bool SystemAlignment::Alignment(ImuData imu_data, GnssData gnss_data,VehicleData
 				sensor_factors_->current_factor_graph_.value_index = 0;
 				sensor_factors_->current_factor_graph_.time_stamp = imu_data.time_stamp;
 				gtsam::Point3 position(0.0,0.0,0.0);
-				gtsam::Rot3 R;
+				gtsam::Rot3 R = gtsam::Rot3::Ypr(180,0.0,0.0);
 
 				sensor_factors_->current_factor_graph_.pose = gtsam::Pose3(R,position);
-
+				sensor_factors_->current_factor_graph_.velocity<<0.0,-6.5,0.0;
 				// velocity and bias are all zeros
 
 				sensor_factors_->current_factor_graph_.values.insert(X(0),sensor_factors_->current_factor_graph_.pose);

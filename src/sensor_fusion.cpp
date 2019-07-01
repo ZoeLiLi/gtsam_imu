@@ -146,6 +146,7 @@ void SensorFusion::Process()
 
 		imu_data_ = imu_para_->GetIMUData();
 		imu_para_->AddImuFactor();
+		//odometry_para_->AddSpeedFactor();
 		sensor_factors_->SetCurrentTimeStamp(imu_data_.time_stamp);
 
 	//	sensor_factors_->SetLatestVertexInfo();
@@ -159,6 +160,7 @@ void SensorFusion::Process()
 		}
 
 		const clock_t begin_time = clock();
+		//sensor_factors_->current_factor_graph_.factors.print();
 		gtsam::ISAM2Result isam2result = isam_.update(sensor_factors_->current_factor_graph_.factors, sensor_factors_->current_factor_graph_.values);
 		results_ = isam_.calculateEstimate();
 		const clock_t end_time = clock();
