@@ -20,6 +20,7 @@ public:
 	void SetVehicleData(VehicleData vehicle_data);
 	VehicleData GetVehicleData();
 	void UpdateInitialValue();
+	void AddSpeedFactor();
 private:
 	void GenerateVelocityFactor();
 private:
@@ -32,7 +33,7 @@ private:
 	boost::condition							condition_;
 
 	VehicleData									vehicle_data_;
-
+	double										speed_;
 
 };
 }

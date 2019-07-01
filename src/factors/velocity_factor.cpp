@@ -3,20 +3,28 @@
 using namespace TADR;
 
 void VelocityFactor1::print(const std::string& s,const gtsam::KeyFormatter& keyFormatter) const{
-	std::cout << s <<"VelocityFactor("<<keyFormatter(this->key())<<std::endl;
-	std::cout << "Velocity measurement: " << velocity_<<std::endl;
+	std::cout << s <<"VelocityFactor1("<<keyFormatter(this->key())<<std::endl;
+std::cout << "Velocity measurement: " << speed_<<std::endl;
 	noiseModel_->print(" noise model: ");
 }
 
 bool VelocityFactor1::equals(const gtsam::NonlinearFactor& expected, double tol) const{
 	const This* e = dynamic_cast<const This*>(&expected);
-	return e != NULL && Base::equals(*e, tol) && gtsam::traits<gtsam::Vector3>::Equals(velocity_, e->velocity_, tol);
+	return e != NULL && Base::equals(*e, tol) && gtsam::traits<double>::Equals(speed_, e->speed_, tol);
 }
 
 gtsam::Vector VelocityFactor1::evaluateError(const gtsam::Vector3& vel,
 	    boost::optional<gtsam::Matrix&> H1) const {
-	gtsam::Vector3 hx = bRn_.rotate(vel,boost::none,H1);
-	return (vel-velocity_);
+
+
+	double r = sqrt(vel(0)*vel(0)+vel(1)*vel(1)+vel(2)*vel(2));
+	if(H1)
+	{
+		H1->resize(1,3);
+		*H1<<vel(0)/r,vel(1)/r,vel(2)/r;
+	}
+
+	return (gtsam::Vector(1)<<(r-speed_)).finished();
 	}
 
 void VelocityFactor2::print(const std::string& s,const gtsam::KeyFormatter& keyFormatter) const{

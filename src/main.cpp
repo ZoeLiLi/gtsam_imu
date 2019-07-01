@@ -68,7 +68,7 @@ int main()
 
 		if(fabs(imu_data_buffer[imu_index].double_time - vehicle_data_buffer[vehicle_index].double_time) <= dt)
 		{
-			//sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
+			sensorfusion->SetVehicleData(vehicle_data_buffer[vehicle_index]);
 			std::cout<<"Vehicle index:"<<vehicle_index<<" "<<vehicle_data_buffer[vehicle_index].double_time<<std::endl;
 			if(vehicle_index < vehicle_data_buffer.size())
 			{
@@ -87,7 +87,7 @@ int main()
 		}
 		count ++;
 
-		if(count >= 10)
+		if(count >= 2)
 		{
 
 			std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
