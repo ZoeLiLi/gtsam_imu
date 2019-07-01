@@ -11,8 +11,6 @@ private:
 
   typedef gtsam::NoiseModelFactor1<gtsam::Vector3> Base;
 
-  gtsam::Point3 velocity_; ///< Position measurement in cartesian coordinates
-  gtsam::Rot3 bRn_;
   double speed_;
 
 public:
@@ -34,8 +32,8 @@ public:
 //	  Base(model,key1),velocity_(velocityIn),bRn_(nRb.inverse()){
 //
 //  }
-  VelocityFactor1(gtsam::Key key1, const double& velocityIn,const gtsam::SharedNoiseModel& model):
-  	  Base(model,key1),speed_(velocityIn){
+  VelocityFactor1(gtsam::Key key1, const double& speedIn,const gtsam::SharedNoiseModel& model):
+  	  Base(model,key1),speed_(speedIn){
     }
 
   virtual gtsam::NonlinearFactor::shared_ptr clone() const {
@@ -53,8 +51,8 @@ public:
   virtual bool equals(const gtsam::NonlinearFactor& expected, double tol = 1e-9) const;
 
 
-  inline const gtsam::Vector3 & measurementIn() const {
-    return velocity_;
+  inline const double & measurementIn() const {
+    return speed_;
   }
 
 private:
@@ -66,7 +64,7 @@ private:
     ar
         & boost::serialization::make_nvp("NoiseModelFactor1",
             boost::serialization::base_object<Base>(*this));
-    ar & BOOST_SERIALIZATION_NVP(velocity_);
+    ar & BOOST_SERIALIZATION_NVP(speed_);
   }
 };
 
@@ -90,9 +88,9 @@ public:
 
   virtual ~VelocityFactor2() {}
 
-  VelocityFactor2(gtsam::Key key1, gtsam::Key key2,const gtsam::Vector3& velocityIn,
+  VelocityFactor2(gtsam::Key key_pose,gtsam::Key key_vel,const gtsam::Vector3& velocityIn,
 		  const gtsam::SharedNoiseModel& model):
-	  Base(model,key1,key2),velocity_(velocityIn){
+	  Base(model,key_pose,key_vel),velocity_(velocityIn){
 
   }
 

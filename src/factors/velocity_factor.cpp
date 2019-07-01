@@ -15,8 +15,6 @@ bool VelocityFactor1::equals(const gtsam::NonlinearFactor& expected, double tol)
 
 gtsam::Vector VelocityFactor1::evaluateError(const gtsam::Vector3& vel,
 	    boost::optional<gtsam::Matrix&> H1) const {
-
-
 	double r = sqrt(vel(0)*vel(0)+vel(1)*vel(1)+vel(2)*vel(2));
 	if(H1)
 	{
@@ -43,21 +41,18 @@ bool VelocityFactor2::equals(const gtsam::NonlinearFactor& expected, double tol)
 gtsam::Vector VelocityFactor2::evaluateError(const gtsam::Pose3& pose,const gtsam::Vector3& vel,
 	    boost::optional<gtsam::Matrix&> H1,boost::optional<gtsam::Matrix&> H2) const {
 
-	gtsam::Rot3 bRn = pose.rotation().inverse();
 	if(H1&&H2)
 	{
-		H1->resize(3,6);
+		gtsam::Rot3 bRn = pose.rotation(H1).inverse();
 		gtsam::Matrix3 H_rot;
 		gtsam::Vector3 hx = bRn.rotate(vel,H_rot,H2);
-		H1->block<3,3>(0,0).setZero();
-		H1->block<3,3>(0,3) = H_rot;
-		//std::cout<<(hx - velocity_)<<std::endl;
+		(*H1) = H_rot* (*H1);
 		return (hx-velocity_);
 	}
 	else
 	{
+		gtsam::Rot3 bRn = pose.rotation().inverse();
 		gtsam::Vector3 hx = bRn.rotate(vel,boost::none,H2);
 		return (hx-velocity_);
 	}
-
 }
