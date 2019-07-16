@@ -20,12 +20,22 @@ bool LoadGNSSData(std::string input_log_path);
 bool PrintResult(PositionInfo result);
 unsigned long long time_shift = 1543220000000;
 ofstream ofs;
-int main()
+int main(int argc, char* argv[])
 {
 
 	boost::shared_ptr<SensorFusion> sensorfusion = boost::shared_ptr<SensorFusion> (new SensorFusion(true,"Event",100));
-	std::string input_file_path("../../data/GPS_IMU_20181126.txt");
-	std::string output_file_path("../../data/20181126result.txt");
+	std::string input_file_path;
+	std::string output_file_path;
+	if(argc == 3)
+	{
+	    input_file_path= argv[1];
+	    output_file_path=argv[2];
+	}
+	else
+	{
+	    input_file_path="../../data/GPS_IMU_20181126.txt";
+	    output_file_path="../../data/20181126result.txt";
+	}
 	LoadReplayLogData(input_file_path);
 	ofs.open(output_file_path.c_str());
 	if(!ofs.is_open())
