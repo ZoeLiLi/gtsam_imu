@@ -31,7 +31,7 @@
 
 // Whether GTSAM is compiled as static or DLL in windows. 
 // This will be used to decide whether include __declspec(dllimport) or not in headers
-#define BUILD_SHARED_LIBS
+/* #undef BUILD_SHARED_LIBS */
 
 #ifdef _WIN32
 #  ifndef BUILD_SHARED_LIBS

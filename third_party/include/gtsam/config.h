@@ -40,7 +40,7 @@
 #endif
 
 // Whether we are using TBB (if TBB was found and GTSAM_WITH_TBB is enabled in CMake)
-#define GTSAM_USE_TBB
+/* #undef GTSAM_USE_TBB */
 
 // Whether we are using system-Eigen or our own patched version
 /* #undef GTSAM_USE_SYSTEM_EIGEN */
@@ -54,8 +54,8 @@
 
 // The default allocator to use
 /* #undef GTSAM_ALLOCATOR_BOOSTPOOL */
-#define GTSAM_ALLOCATOR_TBB
-/* #undef GTSAM_ALLOCATOR_STL */
+/* #undef GTSAM_ALLOCATOR_TBB */
+#define GTSAM_ALLOCATOR_STL
 
 // Option for not throwing the CheiralityException for points that are behind a camera
 #define GTSAM_THROW_CHEIRALITY_EXCEPTION
@@ -67,7 +67,7 @@
 /* #undef GTSAM_TYPEDEF_POINTS_TO_VECTORS */
 
 // Support Metis-based nested dissection
-#define GTSAM_SUPPORT_NESTED_DISSECTION
+/* #undef GTSAM_SUPPORT_NESTED_DISSECTION */
 
 // Support Metis-based nested dissection
 #define GTSAM_TANGENT_PREINTEGRATION
