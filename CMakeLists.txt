@@ -1,7 +1,7 @@
 cmake_minimum_required( VERSION 3.0 )
 project( multiple_sensor_fusion)
 
-set( CMAKE_BUILD_TYPE "Debug" )
+set( CMAKE_BUILD_TYPE "debug" )
 set( CMAKE_CXX_FLAGS "-std=c++11 -O3" )
 
 include_directories(${PROJECT_SOURCE_DIR}/third_party/include)
@@ -30,16 +30,22 @@ set (SOURCE_FILES ${SOURCE_FOLDER}/alignment.cpp
         ${SOURCE_FOLDER}/factors/gnss_factor.cpp)
 
 include_directories(${SOURCE_FOLDER})
-link_directories(${PROJECT_SOURCE_DIR}/third_party/lib)
-link_directories(${PROJECT_SOURCE_DIR}/third_party/lib/boost/debug)
-link_directories(${PROJECT_SOURCE_DIR}/third_party/lib/boost/release)
 
 add_executable( multiple_sensor_fusion ${SOURCE_FILES} ${HEAD_FILES})
 
-target_link_libraries(multiple_sensor_fusion -lgtsam -lGeographic -lSophus -ltbb)
-target_link_libraries(multiple_sensor_fusion -lboost_serialization -lboost_system -lboost_filesystem -lboost_thread -lboost_program_options -lboost_date_time -lboost_timer -lboost_chrono -lboost_regex)
+SET(LINK_MODULE1_LIBS boost_serialization boost_system boost_filesystem boost_thread boost_program_options boost_date_time boost_timer boost_chrono boost_regex)
+FOREACH(module1 ${LINK_MODULE1_LIBS})
+	add_library(${module1} STATIC IMPORTED)
+	target_link_libraries(multiple_sensor_fusion ${PROJECT_SOURCE_DIR}/third_party/lib/boost/${CMAKE_BUILD_TYPE}/lib${module1}.a)
+ENDFOREACH(module1)
+target_link_libraries(multiple_sensor_fusion pthread)
 
-#target_link_libraries(multiple_sensor_fusion ${Boost_LIBRARIES} -lgtsam -ltbb)
-#target_link_libraries(multiple_sensor_fusion ${GeographicLib_LIBRARIES})
+
+SET(LINK_module2_LIBS gtsam Geographic Sophus)
+FOREACH(module2 ${LINK_module2_LIBS})
+	add_library(${module2} STATIC IMPORTED)
+	target_link_libraries(multiple_sensor_fusion ${PROJECT_SOURCE_DIR}/third_party/lib/lib${module2}.a)
+ENDFOREACH(module2)
+
 
 
