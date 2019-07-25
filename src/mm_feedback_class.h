@@ -3,19 +3,17 @@
 #include <iostream>
 #include <string>
 #include "constant.h"
-#include "sensor_factors.h"
 
 namespace TADR
 {
 class MMFeedbackPara
 {
 public:
-	MMFeedbackPara(boost::shared_ptr<SensorFactors> sensor_factor);
+	MMFeedbackPara();
 	virtual ~MMFeedbackPara();
 
 public:
 private:
-	boost::shared_ptr<SensorFactors>			sensor_factors_;
 };
 }
 #endif

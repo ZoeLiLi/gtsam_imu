@@ -3,12 +3,13 @@
 #include <iostream>
 #include <string>
 #include "constant.h"
-#include "sensor_factors.h"
 #include <gtsam/navigation/GPSFactor.h>
 
 
 #include <GeographicLib/LocalCartesian.hpp>
 #include <GeographicLib/Config.h>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/condition.hpp>
 
 namespace TADR
 {
@@ -16,12 +17,14 @@ namespace TADR
 class GNSSPara
 {
 public:
-	GNSSPara(boost::shared_ptr<SensorFactors> sensor_factor);
+	GNSSPara();
 	virtual ~GNSSPara();
 public:
 	void SetGNSSData(GnssData gnss_data);
 	void SetInitialValue(double lat0,double lon0,double h0);
 	GnssData GetGNSSData();
+	gtsam::NonlinearFactorGraph GetGnssFactors();
+	void Reset();
 private:
 	void GenerateGNSSFactor();
 public:
@@ -32,9 +35,8 @@ private:
 	bool								initialed_;
 	gtsam::Vector6						gnss_sigma_;
 	GnssData							gnss_data_;
-	gtsam::NonlinearFactor::shared_ptr	gnss_factor_;
+	gtsam::NonlinearFactorGraph			gnss_factors_;
 	gtsam::SharedNoiseModel				gnss_noise_model_;
-	boost::shared_ptr<SensorFactors>	sensor_factors_;
 	boost::thread*						gnss_thread_;
 	boost::mutex						mutex_;
 	boost::condition					condition_;

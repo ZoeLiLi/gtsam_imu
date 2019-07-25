@@ -4,10 +4,9 @@
 
 using namespace TADR;
 
-GNSSPara::GNSSPara(boost::shared_ptr<SensorFactors> sensor_factor)
+GNSSPara::GNSSPara()
 : initialed_(false)
 , first_enter_(false)
-, sensor_factors_(sensor_factor)
 , gnss_local_cartesian_(0.0,0.0,0.0,GeographicLib::Geocentric::WGS84())
 
 {
@@ -56,13 +55,16 @@ void GNSSPara::GenerateGNSSFactor()
 			gnss_sigma_(4) = gnss_data_.std_lon;
 			gnss_sigma_(5) = gnss_data_.std_height;
 
+			gtsam::Rot3 R;
 			gtsam::Point3 gnss_position(gnss_data_.x,gnss_data_.y,gnss_data_.z);
-			gtsam::Pose3 gnss_pose(gtsam::Pose3(sensor_factors_->current_factor_graph_.pose.rotation(),gnss_position));
-			gtsam::NonlinearFactor::shared_ptr gnss_factor(new gtsam::PriorFactor<gtsam::Pose3>(X(sensor_factors_->current_factor_graph_.value_index),gnss_pose,gnss_noise_model_));
-			//sensor_factors_->current_factor_graph_.pose.print();
+			gtsam::Pose3 gnss_pose(gtsam::Pose3(R,gnss_position));
+			gtsam::NonlinearFactor::shared_ptr gnss_factor(new gtsam::PriorFactor<gtsam::Pose3>(X(value_index),gnss_pose,gnss_noise_model_));
 
-		//	gnss_factor->print();
-			sensor_factors_->current_factor_graph_.factors.push_back(gnss_factor);
+			if(gnss_factors_.size()> 0)
+			{
+				gnss_factors_.resize(0);
+			}
+			gnss_factors_.push_back(gnss_factor);
 
 		}
 		else
@@ -75,4 +77,13 @@ void GNSSPara::GenerateGNSSFactor()
 			}
 		}
 //	}
+}
+gtsam::NonlinearFactorGraph GNSSPara::GetGnssFactors()
+{
+
+	return gnss_factors_;
+}
+void GNSSPara::Reset()
+{
+	gnss_factors_.resize(0);
 }

@@ -3,11 +3,18 @@
 #include <iostream>
 #include <string>
 #include "constant.h"
-
+#include "imu_class.h"
+#include "gnss_class.h"
+#include "odometry_class.h"
 
 #include <boost/thread/thread.hpp>
 #include <boost/thread/condition.hpp>
 #include <gtsam/navigation/ImuBias.h>
+#include <gtsam/nonlinear/ISAM2.h>
+
+#include <GeographicLib/LocalCartesian.hpp>
+#include <GeographicLib/Config.h>
+
 namespace TADR
 {
 class SensorFactors
@@ -17,33 +24,41 @@ public:
 	virtual ~SensorFactors();
 
 public:
-	void SetCurrnetVertexIndex(int value_index);
-	int GetCurrentVertexIndex();
-	void SetCurrentTimeStamp(unsigned long long time_stamp);
-	unsigned long long GetCurrentTimeStamp();
-	void UpdateCurrentVertexInfo(gtsam::Pose3 pose,gtsam::Vector3 velocity,gtsam::imuBias::ConstantBias imu_bias);
-	void SetLatestVertexInfo();
-
-public:
-	std::vector<VertexInfo>			factor_graph_buffer_;
-	VertexInfo						current_factor_graph_;
+	void SetSensorData(SensorData sensor_data,std::string data_type);
+	void PoseGraphOptimization(PositionInfo& position_info);
 
 private:
-	void ExtrapolateNextVertexInfo();
-	void UnionVertexInfo();
-private:
-	int								period_;
-	int								max_buffer_size_;
+	boost::shared_ptr<IMUPara>			imu_para_;
+	boost::shared_ptr<GNSSPara>			gnss_para_;
+	boost::shared_ptr<OdometryPara>		odometry_para_;
 
-	int 							current_value_index_;
-	unsigned long long				current_time_stamp_;
-	gtsam::Point3					current_position_;
-	gtsam::Rot3						current_rotation_;
-	gtsam::Pose3					current_pose_;
-	gtsam::Vector3					current_velocity_;
-	gtsam::imuBias::ConstantBias	current_imu_bias_;
+	GeographicLib::LocalCartesian		result_local_cartesian_;
 
-private:
+
+	gtsam::Values						current_values_;
+	gtsam::Values						results_;
+	gtsam::NonlinearFactorGraph			current_factors_;
+	gtsam::ISAM2Params 					isam_params_;
+	gtsam::ISAM2						isam_;
+
+
+
+	bool								initialed_;
+	int									period_;
+	int									max_buffer_size_;
+
+	gtsam::Vector3						init_sigma_rotation_;
+	gtsam::Vector3						init_sigma_position_;
+	gtsam::Vector3						init_sigma_gyro_;
+	gtsam::Vector3						init_sigma_acc_;
+	gtsam::Vector6						init_sigma_pose_;
+	gtsam::Vector6						init_sigma_bias_;
+	InitSigmaState						init_sigma_state_;
+
+	gtsam::Pose3						current_pose_;
+	gtsam::Vector3						current_velocity_;
+	gtsam::imuBias::ConstantBias		current_imu_bias_;
+
 
 };
 }
