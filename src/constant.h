@@ -31,10 +31,10 @@ typedef struct
 	 double	double_time;
 	 unsigned int time_index;		
 	 double delta_time;
-	 double acc_x;
+	 double acc_x;						//m/s^2
 	 double acc_y;
 	 double acc_z;
-	 double gyro_x;
+	 double gyro_x;						//rad/s
 	 double gyro_y;
 	 double gyro_z;
  }ImuData;
@@ -42,8 +42,8 @@ typedef struct
  typedef struct{
 	 unsigned long long time_stamp;
 	 double double_time;
-	 double lat;				//rad in WGS-84
-	 double lon;				//rad in WGS-84
+	 double lat;				//deg in WGS-84
+	 double lon;				//deg in WGS-84
 	 double height;				//m in WGS-84
 	 double x;				// m in cartesian coordinate
 	 double y;				// m in cartesian coordinate
@@ -68,6 +68,12 @@ typedef struct
 	 double acc_y;
 	 unsigned int gear_status;
  }VehicleData;
+ typedef struct{
+
+	 ImuData current_imu_data;
+	 GnssData current_gnss_data;
+	 VehicleData current_vehicle_data;
+ }SensorData;
 
  typedef struct{
 	 unsigned long long time_stamp;
@@ -88,26 +94,29 @@ typedef struct
  typedef enum{
 	 E_STATUS_INVALID	= 0x00,
 	 E_STATUS_IMU		= 0x01,
-	 E_STATUS_VEHICLE	= 0x02,
-	 E_STATUS_GNSS		= 0x03,
+	 E_STATUS_VEHICLE	= 0x03,
+	 E_STATUS_GNSS		= 0x05,
  }E_FIX_STATUS;
 
  typedef struct{
 	 bool initialed;
 	 unsigned long long time_stamp;
 	 int index;
-	 double lat;
-	 double lon;
-	 double height;
-	 double ve;
+	 double lat;					//deg
+	 double lon;					//deg
+	 double height;					//m
+	 double ve;						//m/s
 	 double vn;
 	 double vu;
-	 double roll;
-	 double pitch;
-	 double yaw;
-	 gtsam::Vector3 gyro_bias;
-	 gtsam::Vector3 acc_bias;
+	 double roll;					//rad
+	 double pitch;					//rad
+	 double yaw;					//rad
+	 gtsam::Vector3 gyro_bias;		//rad/s
+	 gtsam::Vector3 acc_bias;		//m/s^2
 	 unsigned int fix_status;
-	 double time_consum;
+	 double time_consume;
  }PositionInfo;
+
+ //static int value_index= 0;
+ extern int value_index;
  #endif

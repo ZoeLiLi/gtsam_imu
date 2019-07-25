@@ -2,7 +2,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 using namespace TADR;
 
-IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor)
+IMUPara::IMUPara()
 : initialed_(false)
 , frequency_(50)
 , gn_(0.0,0.0,-9.8)
@@ -10,7 +10,6 @@ IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor)
 , gyro_bias_(gtsam::Vector3::Zero())
 , acc_bias_(gtsam::Vector3::Zero())
 , imu_bias_sigma_(gtsam::Vector6::Zero())
-, sensor_factors_(sensor_factor)
 {
 	prior_imu_bias_ = gtsam::imuBias::ConstantBias(acc_bias_,gyro_bias_);
 	imu_params_ = boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>(new gtsam::PreintegratedCombinedMeasurements::Params(gn_));
@@ -28,7 +27,7 @@ IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor)
 	imu_thread_ = new boost::thread(boost::BOOST_BIND(&IMUPara::GenerateIMUFactor,this));
 }
 
-IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor,int frequency)
+IMUPara::IMUPara(int frequency)
 : initialed_(false)
 , frequency_(frequency)
 , gn_(0.0,0.0,-9.8)
@@ -36,7 +35,6 @@ IMUPara::IMUPara(boost::shared_ptr<SensorFactors> sensor_factor,int frequency)
 , gyro_bias_(gtsam::Vector3::Zero())
 , acc_bias_(gtsam::Vector3::Zero())
 , imu_bias_sigma_(gtsam::Vector6::Zero())
-, sensor_factors_(sensor_factor)
 {
 	prior_imu_bias_ = gtsam::imuBias::ConstantBias(acc_bias_,gyro_bias_);
 	imu_params_ = boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>(new gtsam::PreintegratedCombinedMeasurements::Params(gn_));
@@ -93,27 +91,25 @@ void IMUPara::GenerateIMUFactor()
 //	}
 
 }
-void IMUPara::AddImuFactor()
+
+gtsam::NonlinearFactorGraph IMUPara::GetImuFactors()
 {
 	gtsam::NonlinearFactor::shared_ptr imu_factor(new gtsam::CombinedImuFactor(
-			X(sensor_factors_->current_factor_graph_.value_index-1),V(sensor_factors_->current_factor_graph_.value_index-1),
-			X(sensor_factors_->current_factor_graph_.value_index),V(sensor_factors_->current_factor_graph_.value_index),
-			B(sensor_factors_->current_factor_graph_.value_index-1),B(sensor_factors_->current_factor_graph_.value_index),
-			*preintegrated_));
+				X(value_index-1),V(value_index-1),X(value_index),V(value_index),
+				B(value_index-1),B(value_index),*preintegrated_));
 	imu_bias_sigma_<<gtsam::Vector3::Constant(sqrt(imu_count_)*0.1670e-3),gtsam::Vector3::Constant(sqrt(imu_count_)*0.0029e-3);
 	gtsam::NonlinearFactor::shared_ptr imu_bias_factor(new gtsam::BetweenFactor<gtsam::imuBias::ConstantBias>
-			(B(sensor_factors_->current_factor_graph_.value_index-1),B(sensor_factors_->current_factor_graph_.value_index),
+			(B(value_index-1),B(value_index),
 			 gtsam::imuBias::ConstantBias(gtsam::Z_3x1,gtsam::Z_3x1),gtsam::noiseModel::Diagonal::Sigmas(imu_bias_sigma_)));
-//	imu_factor->print();
-//	imu_bias_factor->print();
-	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_factor);
-	sensor_factors_->factor_graph_buffer_.back().factors.push_back(imu_bias_factor);
-
-	sensor_factors_->current_factor_graph_.factors.push_back(imu_factor);
-	sensor_factors_->current_factor_graph_.factors.push_back(imu_bias_factor);
 
 	imu_count_ = 0;
-
+	imu_factors_.push_back(imu_factor);
+	imu_factors_.push_back(imu_bias_factor);
+	return imu_factors_;
+}
+void IMUPara::Reset()
+{
+	imu_factors_.resize(0);
 }
 void IMUPara::UpdateInitialValue()
 {

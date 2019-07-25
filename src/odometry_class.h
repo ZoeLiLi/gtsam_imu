@@ -3,9 +3,9 @@
 #include <iostream>
 #include <string>
 #include "constant.h"
-#include "sensor_factors.h"
 #include "factors/velocity_factor.h"
-
+#include <boost/thread/thread.hpp>
+#include <boost/thread/condition.hpp>
 
 
 namespace TADR
@@ -13,7 +13,7 @@ namespace TADR
 class OdometryPara
 {
 public:
-	OdometryPara(boost::shared_ptr<SensorFactors> sensor_factor);
+	OdometryPara();
 	virtual ~OdometryPara();
 
 public:
@@ -21,19 +21,21 @@ public:
 	VehicleData GetVehicleData();
 	void UpdateInitialValue();
 	void AddSpeedFactor();
+	gtsam::NonlinearFactorGraph GetOdometryFactors();
+	void Reset();
 private:
 	void GenerateVelocityFactor();
 private:
 	bool										initialed_;
 	gtsam::Vector3								velocity_sigma_;
 	gtsam::SharedNoiseModel						velocity_noise_model_;
-	boost::shared_ptr<SensorFactors>			sensor_factors_;
 	boost::thread*								velocity_thread_;
 	boost::mutex								mutex_;
 	boost::condition							condition_;
-
+	gtsam::NonlinearFactorGraph					odometry_factors_;
 	VehicleData									vehicle_data_;
 	double										speed_;
+	int											index_;
 
 };
 }

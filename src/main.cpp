@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 		while(imu_data_buffer[imu_index].double_time > (gnss_data_buffer[gnss_index].double_time + dt) && gnss_index < gnss_data_buffer.size())
 		{
 			gnss_index ++;
-			std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
+	//		std::cout<<"GPS Index:"<<gnss_index<<" "<<gnss_data_buffer[gnss_index].double_time<<std::endl;
 		}
 
 
@@ -97,8 +97,8 @@ int main(int argc, char* argv[])
 		}
 		count ++;
 
-		if(count >= 2)
-		{
+//		if(count >= 2)
+//		{
 
 			std::cout<<"IMU index:"<<imu_index <<" "<< imu_data_buffer[imu_index].double_time<< " "<<imu_data_buffer[imu_index].delta_time<<std::endl;
 			sensorfusion->FastReplayLog();
@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
 			PrintResult(results);
 			last_vertex_time = imu_data_buffer[imu_index-1].time_index;
 			count  = 0;
-		}
+//		}
 		imu_index ++;
 	}
 
@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
 }
 bool PrintResult(PositionInfo result)
 {
-	if(result.initialed)
+	if(result.initialed && result.fix_status != E_FIX_STATUS::E_STATUS_INVALID)
 	{
 		double yaw = 2*KPi - result.yaw;
 		if(yaw > 2*KPi)
@@ -133,7 +133,7 @@ bool PrintResult(PositionInfo result)
 		ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
 		ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
 		ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
-		ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<","<<result.time_consum<<std::endl;
+		ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<","<<result.time_consume<<std::endl;
 		return true;
 	}
 	else

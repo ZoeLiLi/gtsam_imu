@@ -9,6 +9,7 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/include)
 set (SOURCE_FOLDER ${PROJECT_SOURCE_DIR}/src)
 set (HEADER_FILES ${SOURCE_FOLDER}/alignment.h
         ${SOURCE_FOLDER}/constant.h
+        ${SOURCE_FOLDER}/dead_reckoning.h
         ${SOURCE_FOLDER}/gnss_class.h
         ${SOURCE_FOLDER}/imu_class.h
         ${SOURCE_FOLDER}/mm_feedback_class.h
@@ -19,6 +20,7 @@ set (HEADER_FILES ${SOURCE_FOLDER}/alignment.h
         ${SOURCE_FOLDER}/factors/gnss_factor.h)
 
 set (SOURCE_FILES ${SOURCE_FOLDER}/alignment.cpp
+        ${SOURCE_FOLDER}/dead_reckoning.cpp
         ${SOURCE_FOLDER}/gnss_class.cpp
         ${SOURCE_FOLDER}/imu_class.cpp
         ${SOURCE_FOLDER}/main.cpp

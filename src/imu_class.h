@@ -3,10 +3,11 @@
 #include <iostream>
 #include <string>
 #include "constant.h"
-#include "sensor_factors.h"
 #include <gtsam/navigation/ImuBias.h>
 #include <gtsam/navigation/ImuFactor.h>
 #include <gtsam/navigation/CombinedImuFactor.h>
+#include <boost/thread/thread.hpp>
+#include <boost/thread/condition.hpp>
 
 
 namespace TADR
@@ -14,8 +15,8 @@ namespace TADR
 class IMUPara
 {
 public:
-	IMUPara(boost::shared_ptr<SensorFactors> sensor_factor);
-	IMUPara(boost::shared_ptr<SensorFactors> sensor_factor,int frequency);
+	IMUPara();
+	IMUPara(int frequency);
 	virtual ~IMUPara();
 public:
 	void SetIMUData(ImuData imu_data);
@@ -23,7 +24,9 @@ public:
 	void UpdateInitialValue();
 	void UpdatePreIntegration();
 	void UpdatePreIntegration(gtsam::imuBias::ConstantBias bias);
-	void AddImuFactor();
+
+	gtsam::NonlinearFactorGraph GetImuFactors();
+	void Reset();
 private:
 	void GenerateIMUFactor();
 
@@ -35,9 +38,9 @@ private:
 	gtsam::Vector3								gyro_bias_;
 	gtsam::Vector3								acc_bias_;
 	gtsam::Vector6								imu_bias_sigma_;
-	boost::shared_ptr<SensorFactors>			sensor_factors_;
 	gtsam::imuBias::ConstantBias				prior_imu_bias_;
 	boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>		imu_params_;
+	gtsam::NonlinearFactorGraph					imu_factors_;
 
 	ImuData										imu_data_;
 	bool										initialed_;
