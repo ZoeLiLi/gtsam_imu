@@ -158,20 +158,23 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 		result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),
 				position_info.lat,position_info.lon,position_info.height);
 
-		position_info.roll = current_pose_.rotation().roll();
-		position_info.pitch = current_pose_.rotation().pitch();
-		position_info.yaw = current_pose_.rotation().yaw();
-		position_info.ve = current_velocity_[0];
-		position_info.vn = current_velocity_[1];
-		position_info.vu = current_velocity_[2];
-		position_info.gyro_bias = current_imu_bias_.gyroscope();
-		position_info.acc_bias = current_imu_bias_.accelerometer();
-		position_info.index++;
+		UpdatePositionInfo(position_info);
 
 		imu_para_->UpdatePreIntegration(current_imu_bias_);
 		value_index++;
 	}
 }
-
+void SensorFactors::UpdatePositionInfo(PositionInfo& position_info)
+{
+	position_info.roll = current_pose_.rotation().roll();
+	position_info.pitch = current_pose_.rotation().pitch();
+	position_info.yaw = current_pose_.rotation().yaw();
+	position_info.ve = current_velocity_[0];
+	position_info.vn = current_velocity_[1];
+	position_info.vu = current_velocity_[2];
+	position_info.gyro_bias = current_imu_bias_.gyroscope();
+	position_info.acc_bias = current_imu_bias_.accelerometer();
+	position_info.index++;
+}
 
 

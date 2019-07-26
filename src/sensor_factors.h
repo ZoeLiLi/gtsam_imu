@@ -26,6 +26,8 @@ public:
 public:
 	void SetSensorData(SensorData sensor_data,std::string data_type);
 	void PoseGraphOptimization(PositionInfo& position_info);
+private:
+	void UpdatePositionInfo(PositionInfo& position_info);
 
 private:
 	boost::shared_ptr<IMUPara>			imu_para_;
