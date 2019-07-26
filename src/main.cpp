@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
 }
 bool PrintResult(PositionInfo result)
 {
-	if(result.initialed && result.fix_status != E_FIX_STATUS::E_STATUS_INVALID)
+	if(result.initialed/* && result.fix_status != E_FIX_STATUS::E_STATUS_INVALID*/)
 	{
 		double yaw = 2*KPi - result.yaw;
 		if(yaw > 2*KPi)

@@ -68,7 +68,7 @@ void SensorFusion::Process()
 
 		if(initialed_)
 		{
-		//	dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
+			dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
 			sensor_factors_->PoseGraphOptimization(current_position_info_);
 			std::cout<<"Initialed!"<<std::endl;
 			count  = 0;
@@ -77,11 +77,12 @@ void SensorFusion::Process()
 	else
 	{
 		// predict current pose
-	//	dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
+		dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
 		if(count >= 2)
 		{
-			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
+//			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
 			sensor_factors_->PoseGraphOptimization(current_position_info_);
+			dead_reckoning_->UpdatePositionInfo(current_position_info_);
 			count = 0;
 		}
 		const clock_t end_time = clock();

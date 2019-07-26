@@ -143,6 +143,7 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 				position_info.fix_status += E_FIX_STATUS::E_STATUS_IMU;
 			}
 		}
+	//	current_values_.print();
 		gtsam::ISAM2Result isam2result = isam_.update(current_factors_, current_values_);
 		results_ = isam_.calculateEstimate();
 
@@ -152,6 +153,7 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 		current_pose_ = results_.at<gtsam::Pose3>(X(value_index));
 		current_velocity_ = results_.at<gtsam::Vector3>(V(value_index));
 		current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(value_index));
+		//std::cout<<current_velocity_<<std::endl;
 
 		result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),
 				position_info.lat,position_info.lon,position_info.height);
