@@ -21,23 +21,23 @@ DeadReckoning::DeadReckoning()
 DeadReckoning::~DeadReckoning()
 {
 }
+void DeadReckoning::UpdatePositionInfo(PositionInfo position_info)
+{
+	pre_position_info_ = position_info;
+	rot_cbn_ = gtsam::Rot3::Ypr(position_info.yaw,position_info.pitch,position_info.roll);
+	matrix_cbn_ = rot_cbn_.matrix();
+	pre_qbn_ = matrix_cbn_;
+}
 void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_info)
 {
-	static gtsam::Matrix33 matrix_cbn;
-	static gtsam::Rot3	rot_cbn;
-	static gtsam::Vector3 pre_vel;
-	static gtsam::Quaternion pre_qbn;
 	if(!initialed_ && position_info.initialed)
 	{
 		position_info.time_stamp = imu_data.time_stamp;
 		pre_position_info_ = position_info;
 		pre_imu_data_ = imu_data;
-		rot_cbn = gtsam::Rot3::Ypr(position_info.yaw,position_info.pitch,position_info.roll);
-		matrix_cbn = rot_cbn.matrix();
-
-		pre_vel << position_info.ve,position_info.vn,position_info.vu;
-
-		pre_qbn = matrix_cbn;
+		rot_cbn_ = gtsam::Rot3::Ypr(position_info.yaw,position_info.pitch,position_info.roll);
+		matrix_cbn_ = rot_cbn_.matrix();
+		pre_qbn_ = matrix_cbn_;
 		initialed_ = true;
 	}
 	else
@@ -58,6 +58,7 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 		gtsam::Quaternion q_bb,q_nn,q_bn;
 		gtsam::Vector3 dtheta(imu_data.gyro_x*imu_data.delta_time,imu_data.gyro_y*imu_data.delta_time,imu_data.gyro_z*imu_data.delta_time);
 		gtsam::Vector3 dvel(imu_data.acc_x*imu_data.delta_time,imu_data.acc_y*imu_data.delta_time,imu_data.acc_z*imu_data.delta_time);
+		gtsam::Vector3 pre_vel (pre_position_info_.ve,pre_position_info_.vn,pre_position_info_.vu);
 
 		ErrorCompensate(dtheta,position_info.gyro_bias*imu_data.delta_time);
 		ErrorCompensate(dvel,position_info.acc_bias*imu_data.delta_time);
@@ -79,7 +80,7 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 		dsculling = CalculateSculling(imu_data);
 		tmp = 0.5*(wien_ + wenn_)*imu_data.delta_time;
 		dv_cnn = gtsam::I_3x3 -gtsam::skewSymmetric(tmp(0),tmp(1),tmp(2));
-		dv_sf = dv_cnn*matrix_cbn*(dvel + drotate + dsculling);
+		dv_sf = dv_cnn*matrix_cbn_*(dvel + drotate + dsculling);
 		dv_cor_g =  -w_inn.cross(pre_vel) + gn_;
 		dv_cor_g = dv_cor_g * imu_data.delta_time;
 		vel = pre_vel + dv_sf + dv_cor_g;
@@ -92,7 +93,7 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 		position_info.ve = vel(0);
 		position_info.vn = vel(1);
 		position_info.vu = vel(2);
-		pre_vel = vel;
+
 
 //		// Attitude Update
 		CalculateGn(position_info.lat*KDeg2Rad,position_info.height);
@@ -105,19 +106,19 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 		dconing = CalculateConing(imu_data);
 		q_bb = RotVec2Quat(dconing);
 		q_nn = RotVec2Quat(-w_inn*imu_data.delta_time);
-		q_bn = pre_qbn * q_bb;
+		q_bn = pre_qbn_ * q_bb;
 		q_bn.normalized();
-		pre_qbn = q_nn * q_bn;
-		pre_qbn.normalized();
-		matrix_cbn = pre_qbn.toRotationMatrix();
-		rot_cbn = gtsam::Rot3(matrix_cbn);
-		position_info.yaw = rot_cbn.yaw();
-		position_info.pitch = rot_cbn.pitch();
-		position_info.roll = rot_cbn.roll();
+		pre_qbn_ = q_nn * q_bn;
+		pre_qbn_.normalized();
+		matrix_cbn_ = pre_qbn_.toRotationMatrix();
+		rot_cbn_ = gtsam::Rot3(matrix_cbn_);
+		position_info.yaw = rot_cbn_.yaw();
+		position_info.pitch = rot_cbn_.pitch();
+		position_info.roll = rot_cbn_.roll();
 
 		pre_imu_data_ = imu_data;
 		pre_position_info_ = position_info;
-		position_info.fix_status = E_FIX_STATUS::E_STATUS_IMU;
+//		position_info.fix_status = E_FIX_STATUS::E_STATUS_IMU;
 
 	}
 }

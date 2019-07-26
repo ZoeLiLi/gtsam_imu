@@ -17,6 +17,7 @@ public:
 public:
 	void InsMechanization(ImuData imu_data,PositionInfo& position_info);
 	void DeadReckoning2D(VehicleData vehicle_data, PositionInfo& position_info);
+	void UpdatePositionInfo(PositionInfo position_info);
 private:
 	void CalculateGn(double lat,double height);
 	void CalculateWien(double lat);
@@ -44,6 +45,9 @@ private:
 	gtsam::Vector3				wenn_;
 	double						Rm_;
 	double						Rn_;
+	gtsam::Matrix33				matrix_cbn_;
+	gtsam::Rot3					rot_cbn_;
+	gtsam::Quaternion			pre_qbn_;
 
 
 
