@@ -9,6 +9,7 @@ using namespace TADR;
 SensorFusion::SensorFusion( bool fast_replay,std::string triggle_mode, int period)
 : exit_(false)
 , initialed_(false)
+, is_zupt_(false)
 , fix_status_(E_FIX_STATUS::E_STATUS_INVALID)
 , triggle_mode_(triggle_mode)
 , period_(period)
@@ -72,18 +73,28 @@ void SensorFusion::Process()
 			sensor_factors_->PoseGraphOptimization(current_position_info_);
 			std::cout<<"Initialed!"<<std::endl;
 			count  = 0;
+			former_distance_ = 0.0;
 		}
 	}
 	else
 	{
 		// predict current pose
-		dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
-		if(count >= 2)
+		is_zupt_ = ZuptDetection(sensor_data_);
+		if(!is_zupt_)
 		{
-//			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
-			sensor_factors_->PoseGraphOptimization(current_position_info_);
-			dead_reckoning_->UpdatePositionInfo(current_position_info_);
-			count = 0;
+			dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
+			if(count >= 2)
+			{
+			//			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
+				sensor_factors_->PoseGraphOptimization(current_position_info_);
+				dead_reckoning_->UpdatePositionInfo(current_position_info_);
+				former_distance_ = current_position_info_.distance;
+				count = 0;
+			}
+		}
+		else
+		{
+			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
 		}
 		const clock_t end_time = clock();
 		current_position_info_.time_consume = double(end_time - begin_time)/CLOCKS_PER_SEC;
@@ -133,7 +144,14 @@ PositionInfo SensorFusion::GetLatestPosition()
 {
 	return current_position_info_;
 }
-void SensorFusion::PredictCurrentPose()
+bool SensorFusion::ZuptDetection(SensorData sensor_data)
 {
-
+	if(fabs(sensor_data.current_vehicle_data.speed) <= KStaticSpeed)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }

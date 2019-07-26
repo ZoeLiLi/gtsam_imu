@@ -31,7 +31,7 @@ public:
 private:
 	void TimeControl();
 	void Process();
-	void PredictCurrentPose();
+	bool ZuptDetection(SensorData sensor_data_);
 public:
 	SensorData							sensor_data_;
 private:
@@ -42,6 +42,8 @@ private:
 	bool								exit_;
 	bool								initialed_;
 	unsigned int						fix_status_;
+	bool								is_zupt_;
+	double								former_distance_;
 
 	boost::shared_ptr<SensorFactors>	sensor_factors_;
 	boost::shared_ptr<SystemAlignment>	system_alignment_;

@@ -25,6 +25,7 @@ const double KDPH_2_RPS = (KDeg2Rad/3600.0);
 const double KMG_2_MPS2 = (1e-3*9.7803267714);
 const double KMilisecond2Sencond = 0.001;
 const double KMinimalValue = 0.000001;
+const double KStaticSpeed = 0.05;						// m/s. set in config file
 typedef struct
  {
 	 unsigned long long time_stamp;
@@ -115,6 +116,7 @@ typedef struct
 	 gtsam::Vector3 acc_bias;		//m/s^2
 	 unsigned int fix_status;
 	 double time_consume;
+	 double distance;
  }PositionInfo;
 
  //static int value_index= 0;
