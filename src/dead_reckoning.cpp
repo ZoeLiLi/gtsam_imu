@@ -66,14 +66,15 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 
 		//Velocity Update
 
+//		std::cout<<position_info.lat<<" "<<position_info.height<<" "<<position_info.ve<<" "<<position_info.vn<<std::endl;
 		CalculateGn(position_info.lat*KDeg2Rad,position_info.height);
-		CalculateWien(position_info.lat*KDeg2Rad);
-		CalculateWenn(position_info.lat*KDeg2Rad,position_info.height,position_info.ve,position_info.vn);
 		CalculateRm(position_info.lat*KDeg2Rad);
 		CalculateRn(position_info.lat*KDeg2Rad);
+		CalculateWien(position_info.lat*KDeg2Rad);
+		CalculateWenn(position_info.lat*KDeg2Rad,position_info.height,position_info.ve,position_info.vn);
+
 
 		w_inn = 2*wien_ + wenn_;
-//		std::cout<<w_inn<<std::endl;
 
 		// Velocity Update
 		drotate = 0.5 * dtheta.cross(dvel);
@@ -85,6 +86,7 @@ void DeadReckoning::InsMechanization(ImuData imu_data,PositionInfo& position_inf
 		dv_cor_g = dv_cor_g * imu_data.delta_time;
 		vel = pre_vel + dv_sf + dv_cor_g;
 
+//		std::cout<<imu_data.delta_time<<" "<<vel<<std::endl;
 //		// Position Update
 		position_info.height = pre_position_info_.height + 0.5*(pre_position_info_.vu+vel(2)) * imu_data.delta_time;
 		position_info.lat = pre_position_info_.lat + 0.5*(pre_position_info_.vn+vel(1)) * imu_data.delta_time/(Rm_ + position_info.height)*KRad2Deg;

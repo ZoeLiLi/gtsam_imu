@@ -106,14 +106,29 @@ typedef struct
 	 double lat;					//deg
 	 double lon;					//deg
 	 double height;					//m
+	 double std_lat;
+	 double std_lon;
+	 double std_height;
 	 double ve;						//m/s
 	 double vn;
 	 double vu;
+	 double std_ve;
+	 double std_vn;
+	 double std_vu;
 	 double roll;					//rad
 	 double pitch;					//rad
 	 double yaw;					//rad
+	 double std_roll;
+	 double std_pitch;
+	 double std_yaw;
 	 gtsam::Vector3 gyro_bias;		//rad/s
 	 gtsam::Vector3 acc_bias;		//m/s^2
+	 double std_gyro_bias_x;
+	 double std_gyro_bias_y;
+	 double std_gyro_bias_z;
+	 double std_acc_bias_x;
+	 double std_acc_bias_y;
+	 double std_acc_bias_z;
 	 unsigned int fix_status;
 	 double time_consume;
 	 double distance;

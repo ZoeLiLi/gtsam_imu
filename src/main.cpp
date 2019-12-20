@@ -133,7 +133,12 @@ bool PrintResult(PositionInfo result)
 		ofs<<result.vn<<","<<result.ve<<","<<result.vu<<",";
 		ofs<<result.roll<<","<<result.pitch<<","<<yaw<<",";
 		ofs<<result.gyro_bias(0)/KDPH_2_RPS<<","<<result.gyro_bias(1)/KDPH_2_RPS<<","<<result.gyro_bias(2)/KDPH_2_RPS<<",";
-		ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<","<<result.time_consume<<std::endl;
+		ofs<<result.acc_bias(0)/KMG_2_MPS2<<","<<result.acc_bias(1)/KMG_2_MPS2<<","<<result.acc_bias(2)/KMG_2_MPS2<<","<<result.time_consume<<",";
+		ofs<<result.std_lat<<","<<result.std_lon<<","<<result.std_height<<",";
+		ofs<<result.std_vn<<","<<result.std_ve<<","<<result.std_vu<<",";
+		ofs<<result.std_roll<<","<<result.std_pitch<<","<<result.std_yaw<<",";
+		ofs<<result.std_gyro_bias_x<<","<<result.std_gyro_bias_y<<","<<result.std_gyro_bias_z<<",";
+		ofs<<result.std_acc_bias_x<<","<<result.std_acc_bias_y<<","<<result.std_acc_bias_z<<std::endl;
 		return true;
 	}
 	else
