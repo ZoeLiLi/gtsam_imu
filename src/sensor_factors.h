@@ -26,6 +26,7 @@ public:
 public:
 	void SetSensorData(SensorData sensor_data,std::string data_type);
 	void PoseGraphOptimization(PositionInfo& position_info);
+	void PrintGlobalResult();
 private:
 	void UpdatePositionInfo(PositionInfo& position_info);
 
@@ -60,7 +61,9 @@ private:
 	gtsam::Pose3						current_pose_;
 	gtsam::Vector3						current_velocity_;
 	gtsam::imuBias::ConstantBias		current_imu_bias_;
-
+	gtsam::Matrix						covariance_pose_;
+	gtsam::Matrix						covariance_velocity_;
+	gtsam::Matrix						covariance_imu_bias_;
 
 };
 }

@@ -4,6 +4,7 @@
 
 using namespace TADR;
 int value_index = 0;
+
 SensorFactors::SensorFactors(void)
 : initialed_(false)
 , init_sigma_rotation_(gtsam::Vector3::Constant(0.1))
@@ -50,6 +51,8 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 	gtsam::imuBias::ConstantBias imu_bias(position_info.acc_bias,position_info.gyro_bias);
 	if(!initialed_ && position_info.initialed)
 	{
+		std::cout<<position_info.time_stamp<<" "<<position_info.lat<<" "<<position_info.lon<<" "<<position_info.yaw<<std::endl;
+
 		//add first factor and value into isam
 		position << 0.0,0.0,0.0;
 		pose = gtsam::Pose3(rot,position);
@@ -70,6 +73,8 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 		current_factors_.push_back(velocity_factor);
 		current_factors_.push_back(bias_factor);
 
+		current_values_.print();
+		current_factors_.print();
 		isam_.update(current_factors_,current_values_);
 
 
@@ -84,6 +89,7 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 
 		value_index ++;
 		initialed_ = true;
+		std::cout<<position_info.time_stamp<<" "<<position_info.lat<<" "<<position_info.lon<<" "<<position_info.yaw<<std::endl;
 	}
 	else
 	{
@@ -143,9 +149,13 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 				position_info.fix_status += E_FIX_STATUS::E_STATUS_IMU;
 			}
 		}
-	//	current_values_.print();
+		current_values_.print();
+		current_factors_.print();
 		gtsam::ISAM2Result isam2result = isam_.update(current_factors_, current_values_);
 		results_ = isam_.calculateEstimate();
+		covariance_pose_ = isam_.marginalCovariance(X(value_index));
+		covariance_velocity_ = isam_.marginalCovariance(V(value_index));
+		covariance_imu_bias_ = isam_.marginalCovariance(B(value_index));
 
 		current_values_.clear();
 		current_factors_.resize(0);
@@ -153,7 +163,10 @@ void SensorFactors::PoseGraphOptimization(PositionInfo& position_info)
 		current_pose_ = results_.at<gtsam::Pose3>(X(value_index));
 		current_velocity_ = results_.at<gtsam::Vector3>(V(value_index));
 		current_imu_bias_ = results_.at<gtsam::imuBias::ConstantBias>(B(value_index));
-		//std::cout<<current_velocity_<<std::endl;
+
+		std::cout<<current_velocity_<<std::endl;
+		current_pose_.print();
+		current_imu_bias_.print();
 
 		result_local_cartesian_.Reverse(current_pose_.x(),current_pose_.y(),current_pose_.z(),
 				position_info.lat,position_info.lon,position_info.height);
@@ -174,6 +187,22 @@ void SensorFactors::UpdatePositionInfo(PositionInfo& position_info)
 	position_info.vu = current_velocity_[2];
 	position_info.gyro_bias = current_imu_bias_.gyroscope();
 	position_info.acc_bias = current_imu_bias_.accelerometer();
+	position_info.std_lat = sqrt(covariance_pose_(3,3));
+	position_info.std_lon = sqrt(covariance_pose_(4,4));
+	position_info.std_height = sqrt(covariance_pose_(5,5));
+	position_info.std_roll = sqrt(covariance_pose_(0,0));
+	position_info.std_pitch = sqrt(covariance_pose_(1,1));
+	position_info.std_yaw = sqrt(covariance_pose_(2,2));
+	position_info.std_ve = sqrt(covariance_velocity_(0,0));
+	position_info.std_vn = sqrt(covariance_velocity_(1,1));
+	position_info.std_vu = sqrt(covariance_velocity_(2,2));
+	position_info.std_gyro_bias_x = sqrt(covariance_imu_bias_(0,0));
+	position_info.std_gyro_bias_y = sqrt(covariance_imu_bias_(1,1));
+	position_info.std_gyro_bias_z = sqrt(covariance_imu_bias_(2,2));
+	position_info.std_acc_bias_x = sqrt(covariance_imu_bias_(3,3));
+	position_info.std_acc_bias_y = sqrt(covariance_imu_bias_(4,4));
+	position_info.std_acc_bias_z = sqrt(covariance_imu_bias_(5,5));
+
 	position_info.index++;
 }
 

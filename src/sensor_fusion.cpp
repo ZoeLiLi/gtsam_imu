@@ -69,6 +69,7 @@ void SensorFusion::Process()
 
 		if(initialed_)
 		{
+
 			dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
 			sensor_factors_->PoseGraphOptimization(current_position_info_);
 			std::cout<<"Initialed!"<<std::endl;
@@ -79,13 +80,14 @@ void SensorFusion::Process()
 	else
 	{
 		// predict current pose
-		is_zupt_ = ZuptDetection(sensor_data_);
+	//	is_zupt_ = ZuptDetection(sensor_data_);
+		std::cout<<count<<std::endl;
 		if(!is_zupt_)
 		{
 			dead_reckoning_->InsMechanization(sensor_data_.current_imu_data, current_position_info_);
 			if(count >= 2)
 			{
-			//			current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
+//						current_position_info_.time_stamp = sensor_data_.current_imu_data.time_stamp;
 				sensor_factors_->PoseGraphOptimization(current_position_info_);
 				dead_reckoning_->UpdatePositionInfo(current_position_info_);
 				former_distance_ = current_position_info_.distance;
