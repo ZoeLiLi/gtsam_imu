@@ -3,7 +3,7 @@
 ##############################################################
 FROM ubuntu:16.04
 
-MAINTAINER Li Qingli "qlli@telenav.cn"
+MAINTAINER Li Qingli "qlli@whu.edu.cn"
 
 # Install basic tools
 RUN apt-get update && \
