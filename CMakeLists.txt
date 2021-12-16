@@ -3,6 +3,7 @@ project( multiple_sensor_fusion)
 
 set( CMAKE_BUILD_TYPE "debug" )
 set( CMAKE_CXX_FLAGS "-std=c++11 -O3" )
+set( CMAKE_EXE_LINKER_FLAGS "-no-pie")
 
 include_directories(${PROJECT_SOURCE_DIR}/third_party/include)
 

@@ -167,6 +167,11 @@ bool LoadReplayLogData(std::string input_log_path)
 		getline(ifs,strline);
 		std::vector<std::string> vtemp;
 		boost::split(vtemp,strline,boost::is_any_of(","));
+		if (vtemp.size() <= 3)
+		{
+			return;
+		}
+		
 		if(vtemp[2] == "GYRODATA")
 		{
 			imu_data.time_stamp = atoll(vtemp[3].c_str());
